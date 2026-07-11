@@ -15,7 +15,7 @@ version = "0.1.0"
 
 readme = "README.md"
 
-repository = "https://gitlink.org.cn/FidollarinLA/moon_api_guard"
+repository = "https://github.com/FidollarinLA/moon_api_guard"
 
 license = "Apache-2.0"
 

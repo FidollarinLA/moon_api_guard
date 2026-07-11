@@ -2,6 +2,13 @@
 
 `moon_api_guard` is a public API compatibility guard for [MoonBit](https://www.moonbitlang.com) packages.
 
+## Repository
+
+- **GitHub**: https://github.com/FidollarinLA/moon_api_guard
+- **GitLink**: https://gitlink.org.cn/FidollarinLA/moon_api_guard
+
+Both remotes stay in sync for OSC 2026 submission. Default branch: `main` (18 meaningful commits).
+
 MoonBit already generates a formal interface snapshot for every package (the `.mbti` file produced by `moon info`). This project compares two of those snapshots — the previously released interface and the current one — and turns the differences into actionable signals:
 
 - Which public APIs were **removed** or **changed** (breaking changes)?
