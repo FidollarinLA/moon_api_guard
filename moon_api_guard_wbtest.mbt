@@ -8,6 +8,15 @@ test "detects breaking function signature changes" {
 }
 
 ///|
+test "detects removed public api as breaking" {
+  let old_api = [api_item("fn", "parse", "pub fn parse(String) -> Int")]
+  let new_api = []
+  let report = compare_api(old_api, new_api)
+  inspect(report.breaking_count(), content="1")
+  inspect(report.changes[0].message, content="fn parse was removed")
+}
+
+///|
 test "classifies added public api as compatible" {
   let old_api = [api_item("fn", "parse", "pub fn parse(String) -> Int")]
   let new_api = [
