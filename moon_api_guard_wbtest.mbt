@@ -85,3 +85,15 @@ test "blocks release when breaking changes exist" {
   inspect(breaking_report.release_blocked(), content="true")
   inspect(compatible_report.release_blocked(), content="false")
 }
+
+///|
+test "renders json report summary" {
+  let report = compare_api(
+    [],
+    [api_item("fn", "parse", "pub fn parse(String) -> Int")],
+  )
+  inspect(
+    report.json_summary(),
+    content="{\"breaking\":0,\"compatible\":1,\"semver\":\"minor\",\"release_blocked\":false}",
+  )
+}

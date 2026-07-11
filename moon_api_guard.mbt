@@ -121,6 +121,11 @@ pub fn ApiReport::release_blocked(self : ApiReport) -> Bool {
 }
 
 ///|
+pub fn ApiReport::json_summary(self : ApiReport) -> String {
+  "{\"breaking\":\{self.breaking_count()},\"compatible\":\{self.compatible_count()},\"semver\":\"\{self.semver_suggestion()}\",\"release_blocked\":\{self.release_blocked()}}"
+}
+
+///|
 fn ApiReport::count_category(self : ApiReport, category : String) -> Int {
   let mut count = 0
   for change in self.changes {
