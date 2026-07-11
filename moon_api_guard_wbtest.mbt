@@ -49,3 +49,13 @@ test "parses simple mbti public items" {
   inspect(items[0].name, content="parse")
   inspect(items[1].kind, content="struct")
 }
+
+///|
+test "parses public type and alias declarations" {
+  let items = parse_mbti_items([
+    "pub(all) type UserId", "pub(all) typealias Name = String",
+  ])
+  inspect(items.length(), content="2")
+  inspect(items[0].kind, content="type")
+  inspect(items[1].kind, content="alias")
+}

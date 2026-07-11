@@ -149,6 +149,10 @@ fn parse_mbti_line(line : String) -> ApiItem? {
     Some(api_item("struct", name_after(line, "pub(all) struct "), line))
   } else if line.contains("pub(all) enum ") {
     Some(api_item("enum", name_after(line, "pub(all) enum "), line))
+  } else if line.contains("pub(all) typealias ") {
+    Some(api_item("alias", name_after(line, "pub(all) typealias "), line))
+  } else if line.contains("pub(all) type ") {
+    Some(api_item("type", name_after(line, "pub(all) type "), line))
   } else if line.contains("pub trait ") {
     Some(api_item("trait", name_after(line, "pub trait "), line))
   } else if line.contains("pub typealias ") {
