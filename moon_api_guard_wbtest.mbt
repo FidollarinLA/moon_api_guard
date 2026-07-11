@@ -59,3 +59,15 @@ test "parses public type and alias declarations" {
   inspect(items[0].kind, content="type")
   inspect(items[1].kind, content="alias")
 }
+
+///|
+test "renders markdown report summary" {
+  let report = compare_api(
+    [api_item("fn", "parse", "pub fn parse(String) -> Int")],
+    [api_item("fn", "parse", "pub fn parse(String) -> String")],
+  )
+  inspect(
+    report.markdown_summary(),
+    content="# moon_api_guard report\n\n- breaking: 1\n- compatible: 0\n- semver: major",
+  )
+}

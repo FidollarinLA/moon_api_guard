@@ -111,6 +111,11 @@ pub fn ApiReport::semver_suggestion(self : ApiReport) -> String {
 }
 
 ///|
+pub fn ApiReport::markdown_summary(self : ApiReport) -> String {
+  "# moon_api_guard report\n\n- breaking: \{self.breaking_count()}\n- compatible: \{self.compatible_count()}\n- semver: \{self.semver_suggestion()}"
+}
+
+///|
 fn ApiReport::count_category(self : ApiReport, category : String) -> Int {
   let mut count = 0
   for change in self.changes {
