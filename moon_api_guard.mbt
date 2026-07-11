@@ -116,6 +116,11 @@ pub fn ApiReport::markdown_summary(self : ApiReport) -> String {
 }
 
 ///|
+pub fn ApiReport::release_blocked(self : ApiReport) -> Bool {
+  self.breaking_count() > 0
+}
+
+///|
 fn ApiReport::count_category(self : ApiReport, category : String) -> Int {
   let mut count = 0
   for change in self.changes {

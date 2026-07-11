@@ -71,3 +71,17 @@ test "renders markdown report summary" {
     content="# moon_api_guard report\n\n- breaking: 1\n- compatible: 0\n- semver: major",
   )
 }
+
+///|
+test "blocks release when breaking changes exist" {
+  let breaking_report = compare_api(
+    [api_item("fn", "parse", "pub fn parse(String) -> Int")],
+    [],
+  )
+  let compatible_report = compare_api(
+    [],
+    [api_item("fn", "parse", "pub fn parse(String) -> Int")],
+  )
+  inspect(breaking_report.release_blocked(), content="true")
+  inspect(compatible_report.release_blocked(), content="false")
+}
