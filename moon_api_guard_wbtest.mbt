@@ -78,20 +78,18 @@ test "blocks release when breaking changes exist" {
     [api_item("fn", "parse", "pub fn parse(String) -> Int")],
     [],
   )
-  let compatible_report = compare_api(
-    [],
-    [api_item("fn", "parse", "pub fn parse(String) -> Int")],
-  )
+  let compatible_report = compare_api([], [
+    api_item("fn", "parse", "pub fn parse(String) -> Int"),
+  ])
   inspect(breaking_report.release_blocked(), content="true")
   inspect(compatible_report.release_blocked(), content="false")
 }
 
 ///|
 test "renders json report summary" {
-  let report = compare_api(
-    [],
-    [api_item("fn", "parse", "pub fn parse(String) -> Int")],
-  )
+  let report = compare_api([], [
+    api_item("fn", "parse", "pub fn parse(String) -> Int"),
+  ])
   inspect(
     report.json_summary(),
     content="{\"breaking\":0,\"compatible\":1,\"semver\":\"minor\",\"release_blocked\":false}",
@@ -100,7 +98,9 @@ test "renders json report summary" {
 
 ///|
 test "parses implementation declarations" {
-  let items = parse_mbti_items(["impl Eq for ApiItem with op_equal(Self, Self) -> Bool"])
+  let items = parse_mbti_items([
+    "impl Eq for ApiItem with op_equal(Self, Self) -> Bool",
+  ])
   inspect(items.length(), content="1")
   inspect(items[0].kind, content="impl")
   inspect(items[0].name, content="Eq")
