@@ -24,6 +24,8 @@ pub(all) struct ApiChange {
   name : String
   message : String
 } derive(Eq, @debug.Debug)
+pub fn ApiChange::json_object(Self) -> String
+pub fn ApiChange::markdown_line(Self) -> String
 
 pub(all) struct ApiItem {
   kind : String
