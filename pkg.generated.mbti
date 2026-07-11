@@ -33,6 +33,9 @@ pub(all) struct ApiReport {
 } derive(@debug.Debug)
 pub fn ApiReport::breaking_count(Self) -> Int
 pub fn ApiReport::compatible_count(Self) -> Int
+pub fn ApiReport::json_summary(Self) -> String
+pub fn ApiReport::markdown_summary(Self) -> String
+pub fn ApiReport::release_blocked(Self) -> Bool
 pub fn ApiReport::semver_suggestion(Self) -> String
 
 // Type aliases

@@ -32,6 +32,8 @@ Currently implemented:
 - Basic comparison for removed API, changed signatures, and added API.
 - Basic SemVer suggestion.
 - Lightweight parsing for simple `.mbti` public lines.
+- Markdown and JSON report summaries.
+- Release blocking signal for CI usage.
 - `cmd/main`, a minimal runnable example.
 - MoonBit CI for check, test, formatting, and public interface verification.
 
@@ -45,6 +47,8 @@ println(report.semver_suggestion()) // major
 ```
 
 The project is still at the proposal and early implementation stage. More `.mbti` parsing coverage, compatibility rules, report formats, and CI helpers will be added in focused commits.
+
+Repository submission links are still pending. Before OSC 2026 submission, create the public GitHub repository, import it into GitLink, and fill both links in the proposal materials.
 
 ## License
 
