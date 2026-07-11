@@ -97,3 +97,11 @@ test "renders json report summary" {
     content="{\"breaking\":0,\"compatible\":1,\"semver\":\"minor\",\"release_blocked\":false}",
   )
 }
+
+///|
+test "parses implementation declarations" {
+  let items = parse_mbti_items(["impl Eq for ApiItem with op_equal(Self, Self) -> Bool"])
+  inspect(items.length(), content="1")
+  inspect(items[0].kind, content="impl")
+  inspect(items[0].name, content="Eq")
+}

@@ -172,6 +172,8 @@ fn parse_mbti_line(line : String) -> ApiItem? {
     Some(api_item("trait", name_after(line, "pub trait "), line))
   } else if line.contains("pub typealias ") {
     Some(api_item("alias", name_after(line, "pub typealias "), line))
+  } else if line.contains("impl ") {
+    Some(api_item("impl", name_after(line, "impl "), line))
   } else {
     None
   }
