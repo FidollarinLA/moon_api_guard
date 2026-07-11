@@ -19,31 +19,51 @@ When a MoonBit package is published to [mooncakes.io](https://mooncakes.io), dow
 
 ## Quick Start
 
-Check, test, and run the bundled example:
-
 ```bash
 moon check
 moon test
-moon run cmd/main
+moon run cmd/main -- check fixtures/old_api.mbti fixtures/new_api.mbti
 ```
 
-## Usage
+The CLI exits with code `1` when breaking changes are detected, and `0` when the public API is compatible.
+
+## CLI
+
+Compare two `.mbti` snapshots from the command line:
+
+```bash
+moon run cmd/main -- check path/to/old.mbti path/to/new.mbti
+```
+
+Exit codes:
+
+| Code | Meaning |
+| --- | --- |
+| `0` | No breaking changes |
+| `1` | Breaking changes detected (`release_blocked`) |
+| `2` | Invalid usage or file read error |
+
+Example CI usage:
+
+```bash
+moon info
+moon run cmd/main -- check pkg.generated.mbti pkg.generated.mbti
+# Or compare against a committed baseline:
+moon run cmd/main -- check baseline/pkg.generated.mbti pkg.generated.mbti
+```
+
+## Library Usage
 
 Compare two API snapshots and inspect the report:
 
 ```mbt nocheck
-let old_api = @lib.parse_mbti_items([
-  "pub fn parse(String) -> Int",
-])
-let new_api = @lib.parse_mbti_items([
-  "pub fn parse(String) -> String",
-  "pub fn format(Int) -> String",
-])
+let old_api = @lib.parse_mbti_content(old_mbti_text)
+let new_api = @lib.parse_mbti_content(new_mbti_text)
 let report = @lib.compare_api(old_api, new_api)
-println(report.breaking_count()) // 1  (parse changed signature)
-println(report.compatible_count()) // 1  (format was added)
-println(report.semver_suggestion()) // major
-println(report.release_blocked()) // true
+println(report.breaking_count())
+println(report.compatible_count())
+println(report.semver_suggestion())
+println(report.release_blocked())
 ```
 
 Reports are also available in Markdown and JSON for humans and CI systems:
@@ -65,23 +85,30 @@ println(report.json_summary())
 | Type | Meaning |
 | --- | --- |
 | `ApiItem` | One normalized public API item (function, struct, enum, type, alias, trait, impl). |
-| `ApiChange` | A single compatibility finding: `breaking` or `compatible`, with a human-readable message. |
+| `ApiChange` | A single compatibility finding with `category`, `detail`, `kind`, `name`, and `message`. |
 | `ApiReport` | The full comparison result, with counts, SemVer suggestion, release blocking signal, and Markdown/JSON summaries. |
 
 Key functions:
 
+- `parse_mbti_content(content)` — parse a full `.mbti` file into public API items.
 - `parse_mbti_items(lines)` — parse public declarations from `.mbti` interface lines.
 - `compare_api(old_items, new_items)` — diff two API snapshots into an `ApiReport`.
 - `ApiReport::semver_suggestion()` — `major` / `minor` / `patch` recommendation.
 - `ApiReport::release_blocked()` — `true` when breaking changes exist, for CI gating.
 
+Breaking change details include:
+
+- `return-type-changed`, `parameter-removed`, `parameter-added`, `parameter-changed`
+- `visibility-tightened` (`pub(all)` → `pub`)
+- `field-removed`, `field-added`, `field-type-changed`
+- `method-removed`, `method-changed`
+- `variant-removed`, `removed`
+
 ## Roadmap
 
-- Richer `.mbti` parsing: multi-line declarations, struct fields, enum variants, trait methods.
-- Finer-grained change classification (visibility tightening, parameter renames, default changes).
-- A `check old.mbti new.mbti` CLI that exits non-zero on breaking changes.
 - GitHub Actions / GitLink CI templates for drop-in API guarding.
 - Publishing to mooncakes.io.
+- More `.mbti` edge cases: generic bounds, `#deprecated`, suberror payloads.
 
 ## Development
 

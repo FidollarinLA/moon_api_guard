@@ -24,3 +24,7 @@ keywords = [ "api-compatibility", "semver", "mbti", "ci", "moonbit" ]
 preferred_target = "wasm-gc"
 
 description = "Public API compatibility checks for MoonBit packages."
+
+import {
+  "moonbitlang/x@0.4.46",
+}

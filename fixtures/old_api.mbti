@@ -1,0 +1,33 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "skyjk/example"
+
+import {
+  "moonbitlang/core/debug",
+}
+
+// Values
+pub fn parse(String) -> Int
+
+pub fn greet(String, Int) -> String
+
+pub fnalias run = parse
+
+pub(all) struct Report {
+  issues : Array[String]
+  severity : String
+} derive(@debug.Debug)
+
+pub(all) enum Status {
+  Ok
+  Error(String)
+} derive(@debug.Debug)
+
+pub trait Formatter {
+  fn format(Self) -> String
+}
+
+pub(all) type UserId
+
+pub(all) typealias Name = String
+
+pub fn Report::count(Self) -> Int

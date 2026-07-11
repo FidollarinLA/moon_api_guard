@@ -6,6 +6,7 @@ package "skyjk/moon_api_guard/cmd/main"
 // Errors
 
 // Types and methods
+type Command
 
 // Type aliases
 
