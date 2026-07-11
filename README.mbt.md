@@ -7,7 +7,20 @@
 - **GitHub**: https://github.com/FidollarinLA/moon_api_guard
 - **GitLink**: https://gitlink.org.cn/FidollarinLA/moon_api_guard
 
-Both remotes stay in sync for OSC 2026 submission. Default branch: `main` (18 meaningful commits).
+Both remotes stay in sync for OSC 2026 submission. Default branch: `main`.
+
+## OSC 2026 项目申报
+
+本项目参加 [MoonBit 国产开源生态大赛 OSC 2026](https://www.gitlink.org.cn/competitions/track1_2026MoonBit)。
+
+完整申报说明见同目录 **[OSC2026_项目申报书.md](OSC2026_项目申报书.md)**（与 README 同级，便于审核查阅），内容包括项目简介、方向与适用场景、已实现核心功能、后续计划、原创/参考说明及双仓库链接。
+
+| 项 | 内容 |
+| --- | --- |
+| 参赛者 | 翟继康 |
+| 项目方向 | MoonBit 工程基础设施 / API 兼容性与发布守卫 |
+| 开源许可证 | Apache-2.0 |
+| 测试 | 57 个（白盒 + 黑盒 + CLI），CI 覆盖 check / test / fmt / info |
 
 MoonBit already generates a formal interface snapshot for every package (the `.mbti` file produced by `moon info`). This project compares two of those snapshots — the previously released interface and the current one — and turns the differences into actionable signals:
 
