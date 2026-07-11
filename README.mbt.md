@@ -77,7 +77,30 @@ println(report.markdown_summary())
 // - semver: major
 
 println(report.json_summary())
-// {"breaking":1,"compatible":1,"semver":"major","release_blocked":true}
+// {"breaking":1,"compatible":1,"semver":"major","release_blocked":true,"changes":[...]}
+```
+
+Each change in JSON includes `category`, `detail`, `kind`, `name`, and `message`.
+
+## CI Integration
+
+This repository includes:
+
+- Baseline snapshot: `baseline/pkg.generated.mbti`
+- Example workflow: `.github/workflows/api-guard.yml`
+- Copy-paste guide: [docs/ci-integration.md](docs/ci-integration.md)
+
+Typical PR guard:
+
+```bash
+moon info
+moon run cmd/main -- check baseline/pkg.generated.mbti pkg.generated.mbti
+```
+
+When you intentionally change the public API, update the baseline in the same pull request:
+
+```bash
+cp pkg.generated.mbti baseline/pkg.generated.mbti
 ```
 
 ## Core Concepts
@@ -106,9 +129,8 @@ Breaking change details include:
 
 ## Roadmap
 
-- GitHub Actions / GitLink CI templates for drop-in API guarding.
 - Publishing to mooncakes.io.
-- More `.mbti` edge cases: generic bounds, `#deprecated`, suberror payloads.
+- More `.mbti` edge cases: generic bounds, deeply nested signatures.
 
 ## Development
 
@@ -117,6 +139,7 @@ moon fmt    # format code
 moon check  # type check
 moon test   # run tests
 moon info   # regenerate .mbti interface files
+moon coverage analyze  # inspect uncovered lines
 ```
 
 CI runs all of the above and verifies that formatting and generated interfaces are up to date.
