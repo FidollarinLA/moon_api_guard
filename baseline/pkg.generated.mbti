@@ -1,0 +1,47 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "skyjk/moon_api_guard"
+
+import {
+  "moonbitlang/core/debug",
+}
+
+// Values
+pub fn api_item(String, String, String) -> ApiItem
+
+pub fn compare_api(Array[ApiItem], Array[ApiItem]) -> ApiReport
+
+pub fn parse_mbti_content(String) -> Array[ApiItem]
+
+pub fn parse_mbti_items(Array[String]) -> Array[ApiItem]
+
+// Errors
+
+// Types and methods
+pub(all) struct ApiChange {
+  category : String
+  detail : String
+  kind : String
+  name : String
+  message : String
+} derive(Eq, @debug.Debug)
+
+pub(all) struct ApiItem {
+  kind : String
+  name : String
+  signature : String
+} derive(Eq, @debug.Debug)
+
+pub(all) struct ApiReport {
+  changes : Array[ApiChange]
+} derive(@debug.Debug)
+pub fn ApiReport::breaking_count(Self) -> Int
+pub fn ApiReport::compatible_count(Self) -> Int
+pub fn ApiReport::json_summary(Self) -> String
+pub fn ApiReport::markdown_summary(Self) -> String
+pub fn ApiReport::release_blocked(Self) -> Bool
+pub fn ApiReport::semver_suggestion(Self) -> String
+
+// Type aliases
+
+// Traits
+
