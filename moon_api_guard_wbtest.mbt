@@ -30,6 +30,16 @@ test "classifies added public api as compatible" {
 }
 
 ///|
+test "suggests patch when public api is unchanged" {
+  let old_api = [api_item("fn", "parse", "pub fn parse(String) -> Int")]
+  let new_api = [api_item("fn", "parse", "pub fn parse(String) -> Int")]
+  let report = compare_api(old_api, new_api)
+  inspect(report.breaking_count(), content="0")
+  inspect(report.compatible_count(), content="0")
+  inspect(report.semver_suggestion(), content="patch")
+}
+
+///|
 test "parses simple mbti public items" {
   let items = parse_mbti_items([
     "package \"skyjk/example\"", "pub fn parse(String) -> Int", "pub(all) struct Report {",
