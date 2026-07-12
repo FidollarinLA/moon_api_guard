@@ -20,6 +20,9 @@ jobs:
       - name: Show toolchain versions
         run: moon version --all
 
+      - name: Update registry dependencies
+        run: moon update
+
       - name: Check
         run: moon check
 
