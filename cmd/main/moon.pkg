@@ -1,5 +1,5 @@
 import {
-  "skyjk/moon_api_guard" @lib,
+  "FidollarinLA/moon_api_guard" @lib,
   "moonbitlang/x/fs",
   "moonbitlang/x/sys",
 }

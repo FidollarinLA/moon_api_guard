@@ -147,9 +147,26 @@ Breaking change details include:
 - `method-removed`, `method-changed`
 - `variant-removed`, `removed`
 
+## Publishing
+
+Module name: **`FidollarinLA/moon_api_guard`** (matches the GitHub / mooncakes.io account).
+
+```bash
+moon login          # once, creates ~/.moon/credentials.json
+moon publish --dry-run
+moon publish        # uploads to https://mooncakes.io
+```
+
+Consumers add the library with:
+
+```bash
+moon add FidollarinLA/moon_api_guard
+```
+
+Step-by-step guide: [docs/publishing.md](docs/publishing.md) (login, dry-run, dual-remote sync for GitHub + GitLink).
+
 ## Roadmap
 
-- Publishing to mooncakes.io.
 - More `.mbti` edge cases: generic bounds, deeply nested signatures.
 
 ## Development

@@ -9,7 +9,7 @@
 //   "moonbitlang/x@0.4.6",
 // }
 
-name = "skyjk/moon_api_guard"
+name = "FidollarinLA/moon_api_guard"
 
 version = "0.1.0"
 

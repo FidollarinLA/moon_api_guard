@@ -1,5 +1,5 @@
 // Generated using `moon info`, DON'T EDIT IT
-package "skyjk/moon_api_guard"
+package "FidollarinLA/moon_api_guard"
 
 import {
   "moonbitlang/core/debug",

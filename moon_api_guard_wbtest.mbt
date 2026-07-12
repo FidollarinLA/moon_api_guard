@@ -149,7 +149,7 @@ test "parses enum trait and fnalias declarations" {
 
 ///|
 test "parses pkg generated style mbti content" {
-  let content = "package \"skyjk/moon_api_guard\"\n\npub fn compare_api(Array[ApiItem], Array[ApiItem]) -> ApiReport\n\npub(all) struct ApiChange {\n  category : String\n  detail : String\n  kind : String\n  name : String\n  message : String\n} derive(Eq, Debug)\n"
+  let content = "package \"FidollarinLA/moon_api_guard\"\n\npub fn compare_api(Array[ApiItem], Array[ApiItem]) -> ApiReport\n\npub(all) struct ApiChange {\n  category : String\n  detail : String\n  kind : String\n  name : String\n  message : String\n} derive(Eq, Debug)\n"
   let items = parse_mbti_content(content)
   inspect(items.length(), content="2")
   inspect(items[0].kind, content="fn")
