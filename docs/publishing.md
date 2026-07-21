@@ -11,6 +11,7 @@ This guide walks through publishing `FidollarinLA/moon_api_guard` to [mooncakes.
 ```bash
 moon check
 moon test
+moon build
 moon fmt && git diff --exit-code
 moon info && git diff --exit-code
 ```

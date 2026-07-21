@@ -68,8 +68,9 @@ Recommended stage order in an existing pipeline:
 
 1. `moon check`
 2. `moon test`
-3. `moon info`
-4. `moon run cmd/main -- check baseline/pkg.generated.mbti pkg.generated.mbti`
+3. `moon build`
+4. `moon info`
+5. `moon run cmd/main -- check baseline/pkg.generated.mbti pkg.generated.mbti`
 
 Exit codes from the checker:
 

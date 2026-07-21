@@ -126,7 +126,8 @@ pub fn parse_mbti_items(lines : Array[String]) -> Array[ApiItem] {
 ///   breaking `removed` change.
 /// - An item present in both but with a different signature is classified
 ///   further (return type, parameters, visibility, fields, methods,
-///   variants). Enum changes that only add variants are compatible.
+///   variants). Enum variant additions are breaking because exhaustive
+///   pattern matching in downstream code may no longer compile.
 /// - An item only present in `new_items` is a compatible `added` change.
 pub fn compare_api(
   old_items : Array[ApiItem],
@@ -187,7 +188,7 @@ pub fn ApiReport::breaking_count(self : ApiReport) -> Int {
 }
 
 ///|
-/// Count compatible changes (additions and additive enum variants).
+/// Count compatible changes (additions only).
 pub fn ApiReport::compatible_count(self : ApiReport) -> Int {
   self.count_category("compatible")
 }
@@ -377,42 +378,16 @@ fn owned(text : StringView) -> String {
 
 ///|
 /// Decide whether a signature difference is breaking or compatible.
-/// The only compatible signature change today is an enum that gains
-/// new variants without touching existing ones.
+/// Signature changes are always breaking today.
 fn classify_item_change(
   kind : String,
   old_signature : String,
   new_signature : String,
 ) -> ChangeClassification {
-  if kind == "enum" && is_enum_additive_only(old_signature, new_signature) {
-    {
-      category: "compatible",
-      detail: "variant-added",
-      message: "enum variant added",
-    }
-  } else {
-    let (detail, message) = classify_signature_change(
-      kind, old_signature, new_signature,
-    )
-    { category: "breaking", detail, message }
-  }
-}
-
-///|
-/// Whether the enum change only adds variants: every old variant must
-/// still exist unchanged, and at least one new variant must appear.
-fn is_enum_additive_only(
-  old_signature : String,
-  new_signature : String,
-) -> Bool {
-  let old_variants = body_fields(old_signature)
-  let new_variants = body_fields(new_signature)
-  for old_variant in old_variants {
-    if !contains_field(new_variants, old_variant) {
-      return false
-    }
-  }
-  old_variants.length() != new_variants.length()
+  let (detail, message) = classify_signature_change(
+    kind, old_signature, new_signature,
+  )
+  { category: "breaking", detail, message }
 }
 
 ///|
@@ -859,7 +834,15 @@ fn name_after_function(signature : String) -> String {
   let line = declaration_line(signature)
   if line.contains("::") {
     match line.split_once("::") {
-      Some((_, rest)) => first_identifier(trim_line(owned(rest)))
+      Some((type_part, rest)) => {
+        let type_name = associated_type_name(trim_line(owned(type_part)))
+        let method_name = first_identifier(trim_line(owned(rest)))
+        if type_name.length() > 0 {
+          "\{type_name}::\{method_name}"
+        } else {
+          method_name
+        }
+      }
       None => ""
     }
   } else if line.contains("pub fn ") {
@@ -892,6 +875,19 @@ fn name_after_impl(signature : String) -> String {
       }
     }
     None => first_identifier(name_after(line, "impl "))
+  }
+}
+
+///|
+/// Extract the receiver type name from the part before `::` in an
+/// associated function declaration such as `pub fn ApiReport::count`.
+fn associated_type_name(type_part : String) -> String {
+  if type_part.contains("pub fn ") {
+    name_after(type_part, "pub fn ")
+  } else if type_part.contains("fn ") {
+    name_after(type_part, "fn ")
+  } else {
+    first_identifier(type_part)
   }
 }
 

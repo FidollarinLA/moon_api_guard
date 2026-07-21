@@ -29,6 +29,9 @@ jobs:
       - name: Test
         run: moon test
 
+      - name: Build
+        run: moon build
+
       - name: Verify formatting
         run: |
           moon fmt

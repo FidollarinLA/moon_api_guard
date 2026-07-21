@@ -20,7 +20,7 @@ Both remotes stay in sync for OSC 2026 submission. Default branch: `main`.
 | 参赛者 | 翟继康 |
 | 项目方向 | MoonBit 工程基础设施 / API 兼容性与发布守卫 |
 | 开源许可证 | Apache-2.0 |
-| 测试 | 57 个（白盒 + 黑盒 + CLI），CI 覆盖 check / test / fmt / info |
+| 测试 | 58 个（白盒 + 黑盒 + CLI），CI 覆盖 check / test / build / fmt / info |
 
 MoonBit already generates a formal interface snapshot for every package (the `.mbti` file produced by `moon info`). This project compares two of those snapshots — the previously released interface and the current one — and turns the differences into actionable signals:
 
@@ -144,8 +144,8 @@ Breaking change details include:
 - `return-type-changed`, `parameter-removed`, `parameter-added`, `parameter-changed`
 - `visibility-tightened` (`pub(all)` → `pub`)
 - `field-removed`, `field-added`, `field-type-changed`
-- `method-removed`, `method-changed`
-- `variant-removed`, `removed`
+- `method-removed`, `method-changed`, `method-added`
+- `variant-removed`, `variant-added`, `removed`
 
 ## Publishing
 
@@ -175,6 +175,7 @@ Step-by-step guide: [docs/publishing.md](docs/publishing.md) (login, dry-run, du
 moon fmt    # format code
 moon check  # type check
 moon test   # run tests
+moon build  # build all targets
 moon info   # regenerate .mbti interface files
 moon coverage analyze  # inspect uncovered lines
 ```
@@ -183,4 +184,14 @@ CI runs all of the above and verifies that formatting and generated interfaces a
 
 ## License
 
-Apache-2.0
+Apache-2.0. See [LICENSE](LICENSE).
+
+## References
+
+This project is original MoonBit work. The design is informed by (not ported from) these API compatibility tools:
+
+| Project | Link | License | Scope of reference |
+| --- | --- | --- | --- |
+| cargo-semver-checks | https://github.com/obi1kenobi/cargo-semver-checks | Apache-2.0 / MIT | SemVer and breaking-change classification |
+| japicmp | https://github.com/siom79/japicmp | Apache-2.0 | API diff reports for library releases |
+| revapi | https://github.com/revapi/revapi | Apache-2.0 | CI integration and version bump guidance |

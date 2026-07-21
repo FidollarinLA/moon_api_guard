@@ -172,7 +172,7 @@ test "compares fixture style api snapshots" {
 }
 
 ///|
-test "treats enum variant addition as compatible" {
+test "treats enum variant addition as breaking" {
   let old_api = [
     api_item(
       "enum", "Status", "pub(all) enum Status {\n  Ok\n  Error(String)\n}",
@@ -184,8 +184,8 @@ test "treats enum variant addition as compatible" {
     ),
   ]
   let report = compare_api(old_api, new_api)
-  inspect(report.breaking_count(), content="0")
-  inspect(report.compatible_count(), content="1")
+  inspect(report.breaking_count(), content="1")
+  inspect(report.compatible_count(), content="0")
   inspect(report.changes[0].detail, content="variant-added")
 }
 
@@ -346,7 +346,23 @@ test "parses suberror const and associated function items" {
   inspect(items[0].kind, content="suberror")
   inspect(items[1].kind, content="const")
   inspect(items[2].kind, content="fn")
-  inspect(items[2].name, content="count")
+  inspect(items[2].name, content="ApiReport::count")
+}
+
+///|
+test "distinguishes associated functions on different types" {
+  let old_api = [
+    api_item("fn", "Foo::run", "pub fn Foo::run() -> Unit"),
+    api_item("fn", "Bar::run", "pub fn Bar::run() -> Unit"),
+  ]
+  let new_api = [
+    api_item("fn", "Foo::run", "pub fn Foo::run() -> Unit"),
+    api_item("fn", "Bar::run", "pub fn Bar::run(Int) -> Unit"),
+  ]
+  let report = compare_api(old_api, new_api)
+  inspect(report.breaking_count(), content="1")
+  inspect(report.changes[0].name, content="Bar::run")
+  inspect(report.changes[0].detail, content="parameter-added")
 }
 
 ///|
