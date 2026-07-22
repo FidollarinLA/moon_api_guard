@@ -513,3 +513,39 @@ test "parses method style function names from traits" {
   ])
   inspect(items[0].kind, content="trait")
 }
+
+///|
+test "compare_mbti_content detects breaking return type change" {
+  let report = compare_mbti_content(
+    "pub fn parse(String) -> Int", "pub fn parse(String) -> String",
+  )
+  inspect(report.breaking_count(), content="1")
+  inspect(report.semver_suggestion(), content="major")
+}
+
+///|
+test "treats deprecation attribute addition as compatible" {
+  let report = compare_mbti_content(
+    "pub fn parse(String) -> Int", "#deprecated\npub fn parse(String) -> Int",
+  )
+  inspect(report.breaking_count(), content="0")
+  inspect(report.compatible_count(), content="1")
+  inspect(report.changes[0].detail, content="deprecated")
+  inspect(report.semver_suggestion(), content="minor")
+}
+
+///|
+test "keeps generic associated functions on different types distinct" {
+  let items = parse_mbti_items([
+    "pub fn Map[K, V]::get(Self, K) -> V?", "pub fn Map[A, B]::get(Self, A) -> B?",
+  ])
+  inspect(items.length(), content="2")
+  inspect(items[0].name, content="Map[K, V]::get")
+  inspect(items[1].name, content="Map[A, B]::get")
+  let report = compare_api(items, [
+    api_item("fn", "Map[K, V]::get", "pub fn Map[K, V]::get(Self, K) -> V?"),
+    api_item("fn", "Map[A, B]::get", "pub fn Map[A, B]::get(Self, A) -> Int"),
+  ])
+  inspect(report.breaking_count(), content="1")
+  inspect(report.changes[0].name, content="Map[A, B]::get")
+}

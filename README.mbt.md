@@ -20,7 +20,7 @@ Both remotes stay in sync for OSC 2026 submission. Default branch: `main`.
 | 参赛者 | 翟继康 |
 | 项目方向 | MoonBit 工程基础设施 / API 兼容性与发布守卫 |
 | 开源许可证 | Apache-2.0 |
-| 测试 | 58 个（白盒 + 黑盒 + CLI），CI 覆盖 check / test / build / fmt / info |
+| 测试 | 覆盖白盒 + 黑盒 + CLI；CI 覆盖 check / test / build / example / fmt / info |
 
 MoonBit already generates a formal interface snapshot for every package (the `.mbti` file produced by `moon info`). This project compares two of those snapshots — the previously released interface and the current one — and turns the differences into actionable signals:
 
@@ -43,9 +43,16 @@ When a MoonBit package is published to [mooncakes.io](https://mooncakes.io), dow
 moon check
 moon test
 moon run cmd/main -- check fixtures/old_api.mbti fixtures/new_api.mbti
+moon run examples/basic
 ```
 
 The CLI exits with code `1` when breaking changes are detected, and `0` when the public API is compatible.
+
+Runnable example:
+
+```bash
+moon run examples/basic
+```
 
 ## CLI
 
@@ -53,6 +60,8 @@ Compare two `.mbti` snapshots from the command line:
 
 ```bash
 moon run cmd/main -- check path/to/old.mbti path/to/new.mbti
+moon run cmd/main -- check path/to/old.mbti path/to/new.mbti --format json
+moon run cmd/main -- check path/to/old.mbti path/to/new.mbti --format markdown
 ```
 
 Exit codes:
@@ -77,13 +86,24 @@ moon run cmd/main -- check baseline/pkg.generated.mbti pkg.generated.mbti
 Compare two API snapshots and inspect the report:
 
 ```mbt nocheck
-let old_api = @lib.parse_mbti_content(old_mbti_text)
-let new_api = @lib.parse_mbti_content(new_mbti_text)
-let report = @lib.compare_api(old_api, new_api)
+let report = @lib.compare_mbti_content(old_mbti_text, new_mbti_text)
 println(report.breaking_count())
 println(report.compatible_count())
 println(report.semver_suggestion())
 println(report.release_blocked())
+```
+
+Or parse first, then compare:
+
+```mbt nocheck
+///|
+let old_api = @lib.parse_mbti_content(old_mbti_text)
+
+///|
+let new_api = @lib.parse_mbti_content(new_mbti_text)
+
+///|
+let report = @lib.compare_api(old_api, new_api)
 ```
 
 Reports are also available in Markdown and JSON for humans and CI systems:
@@ -136,6 +156,7 @@ Key functions:
 - `parse_mbti_content(content)` — parse a full `.mbti` file into public API items.
 - `parse_mbti_items(lines)` — parse public declarations from `.mbti` interface lines.
 - `compare_api(old_items, new_items)` — diff two API snapshots into an `ApiReport`.
+- `compare_mbti_content(old, new)` — parse + compare in one call.
 - `ApiReport::semver_suggestion()` — `major` / `minor` / `patch` recommendation.
 - `ApiReport::release_blocked()` — `true` when breaking changes exist, for CI gating.
 
@@ -146,6 +167,7 @@ Breaking change details include:
 - `field-removed`, `field-added`, `field-type-changed`
 - `method-removed`, `method-changed`, `method-added`
 - `variant-removed`, `variant-added`, `removed`
+- `deprecated` (compatible attribute-only change)
 
 ## Publishing
 
@@ -156,6 +178,8 @@ moon login          # once, creates ~/.moon/credentials.json
 moon publish --dry-run
 moon publish        # uploads to https://mooncakes.io
 ```
+
+Published package: [FidollarinLA/moon_api_guard](https://mooncakes.io/docs/FidollarinLA/moon_api_guard) (current version `0.1.2`).
 
 Consumers add the library with:
 

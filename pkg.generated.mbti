@@ -10,6 +10,8 @@ pub fn api_item(String, String, String) -> ApiItem
 
 pub fn compare_api(Array[ApiItem], Array[ApiItem]) -> ApiReport
 
+pub fn compare_mbti_content(String, String) -> ApiReport
+
 pub fn parse_mbti_content(String) -> Array[ApiItem]
 
 pub fn parse_mbti_items(Array[String]) -> Array[ApiItem]

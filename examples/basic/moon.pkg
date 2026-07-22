@@ -1,0 +1,5 @@
+import {
+  "FidollarinLA/moon_api_guard" @lib,
+}
+
+pkgtype(kind: "executable")

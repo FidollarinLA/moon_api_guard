@@ -9,9 +9,10 @@ This guide walks through publishing `FidollarinLA/moon_api_guard` to [mooncakes.
 - This repository passes local CI:
 
 ```bash
-moon check
-moon test
+moon check --deny-warn
+moon test --deny-warn
 moon build
+moon run examples/basic
 moon fmt && git diff --exit-code
 moon info && git diff --exit-code
 ```
@@ -22,7 +23,7 @@ The module name in `moon.mod` must match your mooncakes.io username:
 
 ```toml
 name = "FidollarinLA/moon_api_guard"
-version = "0.1.0"
+version = "0.1.2"
 license = "Apache-2.0"
 repository = "https://github.com/FidollarinLA/moon_api_guard"
 description = "Public API compatibility checks for MoonBit packages."

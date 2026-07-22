@@ -66,3 +66,12 @@ test "public parse mbti content handles multiline declarations" {
   inspect(items[0].kind, content="enum")
   inspect(items[1].kind, content="trait")
 }
+
+///|
+test "public compare_mbti_content convenience entry" {
+  let report = @moon_api_guard.compare_mbti_content(
+    "pub fn parse(String) -> Int", "pub fn parse(String) -> String",
+  )
+  inspect(report.release_blocked(), content="true")
+  inspect(report.changes[0].detail, content="return-type-changed")
+}

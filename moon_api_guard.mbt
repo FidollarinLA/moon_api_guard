@@ -129,6 +129,8 @@ pub fn parse_mbti_items(lines : Array[String]) -> Array[ApiItem] {
 ///   variants). Enum variant additions are breaking because exhaustive
 ///   pattern matching in downstream code may no longer compile.
 /// - An item only present in `new_items` is a compatible `added` change.
+/// - Marking an existing item with `#deprecated` (body unchanged) is a
+///   compatible `deprecated` change.
 pub fn compare_api(
   old_items : Array[ApiItem],
   new_items : Array[ApiItem],
@@ -179,6 +181,25 @@ pub fn compare_api(
     }
   }
   { changes, }
+}
+
+///|
+/// Parse and compare two `.mbti` file contents in one step.
+///
+/// This is the most convenient library entry when callers already have
+/// old/new interface text and do not need intermediate `ApiItem` lists.
+///
+/// Example:
+///
+/// ```mbt nocheck
+/// let report = compare_mbti_content(old_mbti, new_mbti)
+/// assert_eq(report.semver_suggestion(), "major")
+/// ```
+pub fn compare_mbti_content(
+  old_content : String,
+  new_content : String,
+) -> ApiReport {
+  compare_api(parse_mbti_content(old_content), parse_mbti_content(new_content))
 }
 
 ///|
@@ -378,16 +399,67 @@ fn owned(text : StringView) -> String {
 
 ///|
 /// Decide whether a signature difference is breaking or compatible.
-/// Signature changes are always breaking today.
+/// Attribute-only `#deprecated` additions are compatible; all other
+/// signature body differences are breaking.
 fn classify_item_change(
   kind : String,
   old_signature : String,
   new_signature : String,
 ) -> ChangeClassification {
-  let (detail, message) = classify_signature_change(
-    kind, old_signature, new_signature,
-  )
-  { category: "breaking", detail, message }
+  let old_body = declaration_body(old_signature)
+  let new_body = declaration_body(new_signature)
+  if old_body == new_body {
+    if became_deprecated(old_signature, new_signature) {
+      {
+        category: "compatible",
+        detail: "deprecated",
+        message: "\{kind} marked as deprecated",
+      }
+    } else {
+      {
+        category: "compatible",
+        detail: "attribute-changed",
+        message: "\{kind} attributes changed",
+      }
+    }
+  } else {
+    let (detail, message) = classify_signature_change(kind, old_body, new_body)
+    { category: "breaking", detail, message }
+  }
+}
+
+///|
+/// Whether `#deprecated` appears on the new signature but not the old one.
+fn became_deprecated(old_signature : String, new_signature : String) -> Bool {
+  !has_deprecated_attr(old_signature) && has_deprecated_attr(new_signature)
+}
+
+///|
+fn has_deprecated_attr(signature : String) -> Bool {
+  for line in signature.split("\n") {
+    let trimmed = trim_line(owned(line))
+    if trimmed.has_prefix("#deprecated") {
+      return true
+    }
+  }
+  false
+}
+
+///|
+/// Strip leading attribute lines (`#...`) so body-only diffs can be
+/// classified separately from deprecation metadata changes.
+fn declaration_body(signature : String) -> String {
+  let mut body = ""
+  let mut started = false
+  for line in signature.split("\n") {
+    let trimmed = trim_line(owned(line))
+    if !started && trimmed.has_prefix("#") {
+      continue
+    }
+    started = true
+    body = append_line(body, trimmed)
+  }
+  body
 }
 
 ///|
@@ -880,15 +952,54 @@ fn name_after_impl(signature : String) -> String {
 
 ///|
 /// Extract the receiver type name from the part before `::` in an
-/// associated function declaration such as `pub fn ApiReport::count`.
+/// associated function declaration such as `pub fn ApiReport::count`
+/// or `pub fn Map[K, V]::get`.
 fn associated_type_name(type_part : String) -> String {
-  if type_part.contains("pub fn ") {
-    name_after(type_part, "pub fn ")
+  let after_fn = if type_part.contains("pub fn ") {
+    match type_part.split_once("pub fn ") {
+      Some((_, rest)) => trim_line(owned(rest))
+      None => type_part
+    }
   } else if type_part.contains("fn ") {
-    name_after(type_part, "fn ")
+    match type_part.split_once("fn ") {
+      Some((_, rest)) => trim_line(owned(rest))
+      None => type_part
+    }
   } else {
-    first_identifier(type_part)
+    type_part
   }
+  type_name_with_generics(after_fn)
+}
+
+///|
+/// Read a type name including optional `[...]` generic arguments, so
+/// `Map[K, V]::get` and `Map[A, B]::get` stay distinct identities.
+fn type_name_with_generics(text : String) -> String {
+  let base = first_identifier(text)
+  if base.length() == 0 {
+    return ""
+  }
+  let after_base = match text.split_once(base) {
+    Some((_, rest)) => rest
+    None => return base
+  }
+  if !after_base.has_prefix("[") {
+    return base
+  }
+  let mut depth = 0
+  let mut generics = ""
+  for char in after_base {
+    generics = generics + char.to_string()
+    if char == '[' {
+      depth = depth + 1
+    } else if char == ']' {
+      depth = depth - 1
+      if depth == 0 {
+        return base + generics
+      }
+    }
+  }
+  base + generics
 }
 
 ///|

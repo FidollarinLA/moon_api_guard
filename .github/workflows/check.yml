@@ -24,13 +24,16 @@ jobs:
         run: moon update
 
       - name: Check
-        run: moon check
+        run: moon check --deny-warn
 
       - name: Test
-        run: moon test
+        run: moon test --deny-warn
 
       - name: Build
         run: moon build
+
+      - name: Run basic example
+        run: moon run examples/basic
 
       - name: Verify formatting
         run: |
