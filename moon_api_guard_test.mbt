@@ -122,3 +122,41 @@ test "public policy allow can relax enum variant addition" {
   inspect(report.breaking_count(), content="0")
   inspect(report.compatible_count(), content="1")
 }
+
+///|
+test "public policy_from_json_text loads strict allow ignore" {
+  let policy = @moon_api_guard.policy_from_json_text(
+    "{\"strict\":true,\"allow\":[\"variant-added\"],\"ignore\":[\"deprecated\"]}",
+  )
+  inspect(policy is Some(_), content="true")
+  match policy {
+    Some(loaded) => {
+      inspect(loaded.overrides.length(), content="2")
+      let report = @moon_api_guard.compare_mbti_content_with_policy(
+        "pub(all) enum Status {\n  Ok\n}", "pub(all) enum Status {\n  Ok\n  Warning\n}",
+        loaded,
+      )
+      inspect(report.breaking_count(), content="0")
+    }
+    None => inspect(false, content="true")
+  }
+}
+
+///|
+test "public policy_from_json_text rejects invalid json" {
+  inspect(@moon_api_guard.policy_from_json_text("{") is None, content="true")
+  inspect(
+    @moon_api_guard.policy_from_json_text("{\"strict\":\"yes\"}") is None,
+    content="true",
+  )
+}
+
+///|
+test "public regression-style base64 optional params stay compatible" {
+  let old = "package \"example/base64\"\npub fn encode(BytesView) -> String\npub fn Decoder::decode_to(Self, StringView, (Byte) -> Unit) -> Unit raise DecodeError\n"
+  let new = "package \"example/base64\"\npub fn encode(BytesView, url_safe? : Bool) -> String\npub fn Decoder::decode_to(Self, StringView, (Byte) -> Unit, url_safe? : Bool) -> Unit raise DecodeError\n"
+  let report = @moon_api_guard.compare_mbti_content(old, new)
+  inspect(report.release_blocked(), content="false")
+  inspect(report.compatible_count(), content="2")
+  inspect(report.changes[1].detail, content="optional-parameter-added")
+}

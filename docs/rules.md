@@ -72,14 +72,19 @@ moon run cmd/main -- check old.mbti new.mbti --strict
 # remap or drop specific details
 moon run cmd/main -- check old.mbti new.mbti --allow variant-added,raise-removed
 moon run cmd/main -- check old.mbti new.mbti --ignore deprecated
+
+# load a JSON policy file (CLI --allow/--ignore still stack on top)
+moon run cmd/main -- check old.mbti new.mbti --policy fixtures/policies/default-plus-variant.json
 ```
 
 Library:
 
 ```mbt nocheck
-let policy = @moon_api_guard.policy_allow(
-  @moon_api_guard.default_compat_policy(),
-  "variant-added",
-)
+let policy = match @moon_api_guard.policy_from_json_text(
+  "{\"strict\":false,\"allow\":[\"variant-added\"],\"ignore\":[]}",
+) {
+  Some(p) => p
+  None => @moon_api_guard.default_compat_policy()
+}
 let report = @moon_api_guard.compare_mbti_content_with_policy(old, new, policy)
 ```

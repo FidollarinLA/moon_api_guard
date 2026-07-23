@@ -1,5 +1,27 @@
 # Changelog
 
+## 0.3.1 — 2026-07-23
+
+### Added
+
+- `policy_from_json_text` for loading `CompatPolicy` from JSON
+- CLI `--policy <file.json>` (stacks with `--allow` / `--ignore`)
+- Package-surface regression fixtures under `fixtures/regression/`
+- Sample policy files under `fixtures/policies/`
+- `scripts/demo.sh` one-command local / 答辩 demo
+- `docs/design-0.3.1.md`
+
+### Fixed
+
+- Nested function-typed parameters such as `(Byte) -> Unit` no longer
+  confuse return-arrow / parameter parsing (optional labeled params after
+  them are classified correctly)
+
+### Docs
+
+- Fixture attribution notes in `fixtures/README.md`
+- README / rules updated for `--policy`
+
 ## 0.3.0 — 2026-07-23
 
 ### Added

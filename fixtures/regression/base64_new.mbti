@@ -1,0 +1,13 @@
+// Derived from moonbitlang/x/codec/base64 public surface (Apache-2.0) for regression only
+package "example/base64"
+
+pub fn decode(StringView, url_safe? : Bool) -> Bytes raise DecodeError
+pub fn encode(BytesView, url_safe? : Bool) -> String
+
+pub suberror DecodeError {
+  InvalidChar(Char)
+}
+
+type Decoder
+pub fn Decoder::new() -> Self
+pub fn Decoder::decode_to(Self, StringView, (Byte) -> Unit, url_safe? : Bool) -> Unit raise DecodeError

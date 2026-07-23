@@ -651,3 +651,51 @@ test "policy ignore drops matching findings" {
   inspect(report.changes.length(), content="0")
   inspect(report.semver_suggestion(), content="patch")
 }
+
+///|
+test "policy_from_json_text builds default-plus-allow policy" {
+  let policy = policy_from_json_text(
+    "{\"strict\":false,\"allow\":[\"variant-added\"],\"ignore\":[]}",
+  )
+  match policy {
+    Some(loaded) => {
+      inspect(
+        loaded.category_for("variant-added", "breaking"),
+        content="compatible",
+      )
+      inspect(
+        loaded.category_for("optional-parameter-added", "breaking"),
+        content="compatible",
+      )
+    }
+    None => inspect(false, content="true")
+  }
+}
+
+///|
+test "nested function-typed params do not break optional detection" {
+  let report = compare_mbti_content(
+    "pub fn Decoder::decode_to(Self, StringView, (Byte) -> Unit) -> Unit raise DecodeError",
+    "pub fn Decoder::decode_to(Self, StringView, (Byte) -> Unit, url_safe? : Bool) -> Unit raise DecodeError",
+  )
+  inspect(report.release_blocked(), content="false")
+  inspect(report.changes[0].detail, content="optional-parameter-added")
+  inspect(
+    function_params(
+      "pub fn Decoder::decode_to(Self, StringView, (Byte) -> Unit, url_safe? : Bool) -> Unit raise DecodeError",
+    ),
+    content="Self, StringView, (Byte) -> Unit, url_safe? : Bool",
+  )
+  inspect(
+    function_value_type(
+      "pub fn Decoder::decode_to(Self, StringView, (Byte) -> Unit) -> Unit raise DecodeError",
+    ),
+    content="Unit",
+  )
+  inspect(
+    function_raise_clause(
+      "pub fn Decoder::decode_to(Self, StringView, (Byte) -> Unit) -> Unit raise DecodeError",
+    ),
+    content="DecodeError",
+  )
+}

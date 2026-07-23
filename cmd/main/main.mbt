@@ -20,7 +20,10 @@ fn main {
 priv struct CheckOpts {
   format : String
   breaking_only : Bool
-  policy : @lib.CompatPolicy
+  strict : Bool
+  allow : String
+  ignore : String
+  policy_path : String
 }
 
 ///|
@@ -73,6 +76,7 @@ fn parse_check_like_command(args : Array[String], cmd : String) -> Command {
   let mut strict = false
   let mut allow = ""
   let mut ignore = ""
+  let mut policy_path = ""
   let mut index = 2
   while index < args.length() {
     let arg = args[index]
@@ -103,6 +107,12 @@ fn parse_check_like_command(args : Array[String], cmd : String) -> Command {
       }
       ignore = args[index + 1]
       index = index + 2
+    } else if arg == "--policy" {
+      if index + 1 >= args.length() {
+        return Invalid("--policy requires a JSON file path")
+      }
+      policy_path = args[index + 1]
+      index = index + 2
     } else if left.length() == 0 {
       left = arg
       index = index + 1
@@ -116,7 +126,10 @@ fn parse_check_like_command(args : Array[String], cmd : String) -> Command {
   let opts : CheckOpts = {
     format,
     breaking_only,
-    policy: build_policy(strict, allow, ignore),
+    strict,
+    allow,
+    ignore,
+    policy_path,
   }
   if left.length() == 0 || right.length() == 0 {
     if cmd == "check-dir" {
@@ -132,20 +145,25 @@ fn parse_check_like_command(args : Array[String], cmd : String) -> Command {
 }
 
 ///|
-fn build_policy(
-  strict : Bool,
-  allow : String,
-  ignore : String,
-) -> @lib.CompatPolicy {
-  let mut policy = if strict {
+fn resolve_policy(opts : CheckOpts) -> @lib.CompatPolicy {
+  let mut policy = if opts.policy_path.length() > 0 {
+    match @lib.policy_from_json_text(read_mbti_file(opts.policy_path)) {
+      Some(loaded) => loaded
+      None => {
+        println("error: invalid policy JSON: \{opts.policy_path}")
+        @sys.exit(2)
+        @lib.default_compat_policy()
+      }
+    }
+  } else if opts.strict {
     @lib.strict_compat_policy()
   } else {
     @lib.default_compat_policy()
   }
-  for detail in split_csv(allow) {
+  for detail in split_csv(opts.allow) {
     policy = @lib.policy_allow(policy, detail)
   }
-  for detail in split_csv(ignore) {
+  for detail in split_csv(opts.ignore) {
     policy = @lib.policy_ignore(policy, detail)
   }
   policy
@@ -172,7 +190,7 @@ fn run_check(old_path : String, new_path : String, opts : CheckOpts) -> Unit {
     @lib.compare_mbti_content_with_policy(
       read_mbti_file(old_path),
       read_mbti_file(new_path),
-      opts.policy,
+      resolve_policy(opts),
     ),
     opts.breaking_only,
   )
@@ -182,7 +200,7 @@ fn run_check(old_path : String, new_path : String, opts : CheckOpts) -> Unit {
 ///|
 fn run_check_dir(old_dir : String, new_dir : String, opts : CheckOpts) -> Unit {
   let report = maybe_breaking_only(
-    compare_mbti_dirs_with_policy(old_dir, new_dir, opts.policy),
+    compare_mbti_dirs_with_policy(old_dir, new_dir, resolve_policy(opts)),
     opts.breaking_only,
   )
   emit_report(report, opts.format)
@@ -385,6 +403,7 @@ fn print_usage() -> Unit {
   println("  --strict")
   println("  --allow <detail>[,detail...]")
   println("  --ignore <detail>[,detail...]")
+  println("  --policy <policy.json>")
   println("")
   println("Exit codes:")
   println("  0 - no breaking changes")

@@ -1,0 +1,11 @@
+// Derived from moonbitlang/x/fs public surface (Apache-2.0) for regression only
+package "example/fs"
+
+pub fn create_dir(String) -> Unit raise IOError
+pub fn read_file_to_string(String) -> String raise IOError
+pub fn write_string_to_file(String, String) -> Unit raise IOError
+pub fn path_exists(String) -> Bool
+
+pub(all) suberror IOError {
+  IOError(String)
+}

@@ -1,0 +1,4 @@
+package "example/parse"
+
+pub fn parse(String) -> Json raise ParseError
+pub fn parse_lossy(String) -> Json raise ParseError

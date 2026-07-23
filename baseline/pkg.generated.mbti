@@ -30,6 +30,8 @@ pub fn parse_mbti_items(Array[String]) -> Array[ApiItem]
 
 pub fn policy_allow(CompatPolicy, String) -> CompatPolicy
 
+pub fn policy_from_json_text(String) -> CompatPolicy?
+
 pub fn policy_ignore(CompatPolicy, String) -> CompatPolicy
 
 pub fn policy_with_override(CompatPolicy, String, String) -> CompatPolicy

@@ -85,3 +85,64 @@ fn CompatPolicy::category_for(
   }
   fallback
 }
+
+///|
+/// Build a `CompatPolicy` from a JSON policy document.
+///
+/// Expected shape:
+/// ```text
+/// {
+///   "strict": false,
+///   "allow": ["variant-added"],
+///   "ignore": ["deprecated"]
+/// }
+/// ```
+///
+/// Missing fields default to `strict=false` and empty allow/ignore lists.
+/// Returns `None` when the text is not valid policy JSON.
+pub fn policy_from_json_text(text : String) -> CompatPolicy? {
+  let json = @json.parse(text) catch { _ => return None }
+  guard json is Object(obj) else { return None }
+  let strict = match obj.get("strict") {
+    None => false
+    Some(True) => true
+    Some(False) => false
+    _ => return None
+  }
+  let allow = match json_string_array(obj.get("allow")) {
+    Some(items) => items
+    None => return None
+  }
+  let ignore = match json_string_array(obj.get("ignore")) {
+    Some(items) => items
+    None => return None
+  }
+  let mut policy = if strict {
+    strict_compat_policy()
+  } else {
+    default_compat_policy()
+  }
+  for detail in allow {
+    policy = policy_allow(policy, detail)
+  }
+  for detail in ignore {
+    policy = policy_ignore(policy, detail)
+  }
+  Some(policy)
+}
+
+///|
+fn json_string_array(value : Json?) -> Array[String]? {
+  match value {
+    None => Some([])
+    Some(Array(items)) => {
+      let out : Array[String] = []
+      for item in items {
+        guard item is String(s) else { return None }
+        out.push(s)
+      }
+      Some(out)
+    }
+    _ => None
+  }
+}

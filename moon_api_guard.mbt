@@ -1008,8 +1008,8 @@ fn find_item(items : Array[ApiItem], kind : String, name : String) -> ApiItem? {
 /// Extract the raw parameter list text between the outermost `(` and
 /// `)` of a function head, keeping nested brackets intact.
 fn function_params(signature : String) -> String {
-  let head = function_head(signature)
-  match head.split_once("(") {
+  let line = declaration_line(signature)
+  match line.split_once("(") {
     Some((_, after_open)) => {
       let mut params = ""
       let mut depth = 0
@@ -1034,25 +1034,61 @@ fn function_params(signature : String) -> String {
 }
 
 ///|
-fn function_head(signature : String) -> String {
-  match signature.split_once("->") {
-    Some((before, _)) => trim_line(owned(before))
-    None => trim_line(signature)
+/// Split on the `->` that follows the outermost parameter list, not on
+/// arrows that appear inside nested function-typed parameters.
+fn top_level_return_split(signature : String) -> (String, String)? {
+  let mut depth = 0
+  let mut seen_params = false
+  let mut before = ""
+  let mut pending_dash = false
+  let mut after = ""
+  let mut found = false
+  for char in signature {
+    if found {
+      after = after + char.to_string()
+      continue
+    }
+    if pending_dash {
+      pending_dash = false
+      if char == '>' && depth == 0 && seen_params {
+        found = true
+        continue
+      }
+      before = before + "-" + char.to_string()
+      continue
+    }
+    if char == '(' || char == '[' {
+      depth = depth + 1
+      if char == '(' {
+        seen_params = true
+      }
+      before = before + char.to_string()
+    } else if char == ')' || char == ']' {
+      if depth > 0 {
+        depth = depth - 1
+      }
+      before = before + char.to_string()
+    } else if char == '-' {
+      pending_dash = true
+    } else {
+      before = before + char.to_string()
+    }
+  }
+  if found {
+    Some((before, after))
+  } else {
+    None
   }
 }
 
 ///|
-/// Extract the return type: the text after the last `->`, so nested
+/// Extract the return type: the text after the top-level `->`, so nested
 /// function types in parameters do not confuse the result.
 fn function_return_type(signature : String) -> String {
-  let parts : Array[String] = []
-  for part in signature.split("->") {
-    parts.push(owned(part))
-  }
-  if parts.length() <= 1 {
-    ""
-  } else {
-    trim_line(parts[parts.length() - 1])
+  let line = declaration_line(signature)
+  match top_level_return_split(line) {
+    Some((_, after)) => trim_line(after)
+    None => ""
   }
 }
 
