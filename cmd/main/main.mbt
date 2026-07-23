@@ -3,7 +3,12 @@
 fn main {
   let args = @sys.get_cli_args()
   match parse_command(args) {
-    Check(old_path, new_path, format) => run_check(old_path, new_path, format)
+    Check(old_path, new_path, format, breaking_only) =>
+      run_check(old_path, new_path, format, breaking_only)
+    CheckDir(old_dir, new_dir, format, breaking_only) =>
+      run_check_dir(old_dir, new_dir, format, breaking_only)
+    BaselineUpdate(current_path, baseline_path) =>
+      run_baseline_update(current_path, baseline_path)
     Help => print_usage()
     Invalid(message) => {
       println("error: \{message}")
@@ -15,7 +20,9 @@ fn main {
 
 ///|
 enum Command {
-  Check(String, String, String)
+  Check(String, String, String, Bool)
+  CheckDir(String, String, String, Bool)
+  BaselineUpdate(String, String)
   Help
   Invalid(String)
 }
@@ -25,15 +32,39 @@ fn parse_command(args : Array[String]) -> Command {
   if args.length() <= 1 {
     return Help
   }
-  if args[1] == "help" || args[1] == "--help" || args[1] == "-h" {
+  let cmd = args[1]
+  if cmd == "help" || cmd == "--help" || cmd == "-h" {
     return Help
   }
-  if args[1] != "check" {
-    return Invalid("unknown command: \{args[1]}")
+  if cmd == "baseline" {
+    return parse_baseline_command(args)
   }
-  let mut old_path = ""
-  let mut new_path = ""
+  if cmd == "check" || cmd == "check-dir" {
+    return parse_check_like_command(args, cmd)
+  }
+  Invalid("unknown command: \{cmd}")
+}
+
+///|
+fn parse_baseline_command(args : Array[String]) -> Command {
+  if args.length() < 3 || args[2] != "update" {
+    return Invalid("baseline requires subcommand: update")
+  }
+  if args.length() < 5 {
+    return Invalid("baseline update requires <current.mbti> <baseline.mbti>")
+  }
+  if args.length() > 5 {
+    return Invalid("unexpected argument: \{args[5]}")
+  }
+  BaselineUpdate(args[3], args[4])
+}
+
+///|
+fn parse_check_like_command(args : Array[String], cmd : String) -> Command {
+  let mut left = ""
+  let mut right = ""
   let mut format = "text"
+  let mut breaking_only = false
   let mut index = 2
   while index < args.length() {
     let arg = args[index]
@@ -46,31 +77,116 @@ fn parse_command(args : Array[String]) -> Command {
         return Invalid("unsupported format: \{format}")
       }
       index = index + 2
-    } else if old_path.length() == 0 {
-      old_path = arg
+    } else if arg == "--breaking-only" {
+      breaking_only = true
       index = index + 1
-    } else if new_path.length() == 0 {
-      new_path = arg
+    } else if left.length() == 0 {
+      left = arg
+      index = index + 1
+    } else if right.length() == 0 {
+      right = arg
       index = index + 1
     } else {
       return Invalid("unexpected argument: \{arg}")
     }
   }
-  if old_path.length() == 0 || new_path.length() == 0 {
-    Invalid("check requires two .mbti file paths")
+  if left.length() == 0 || right.length() == 0 {
+    if cmd == "check-dir" {
+      Invalid("check-dir requires two directory paths")
+    } else {
+      Invalid("check requires two .mbti file paths")
+    }
+  } else if cmd == "check-dir" {
+    CheckDir(left, right, format, breaking_only)
   } else {
-    Check(old_path, new_path, format)
+    Check(left, right, format, breaking_only)
   }
 }
 
 ///|
-fn run_check(old_path : String, new_path : String, format : String) -> Unit {
-  let old_content = read_mbti_file(old_path)
-  let new_content = read_mbti_file(new_path)
-  let report = @lib.compare_mbti_content(old_content, new_content)
+fn run_check(
+  old_path : String,
+  new_path : String,
+  format : String,
+  breaking_only : Bool,
+) -> Unit {
+  let report = maybe_breaking_only(
+    @lib.compare_mbti_content(
+      read_mbti_file(old_path),
+      read_mbti_file(new_path),
+    ),
+    breaking_only,
+  )
+  emit_report(report, format)
+}
+
+///|
+fn run_check_dir(
+  old_dir : String,
+  new_dir : String,
+  format : String,
+  breaking_only : Bool,
+) -> Unit {
+  let report = maybe_breaking_only(
+    compare_mbti_dirs(old_dir, new_dir),
+    breaking_only,
+  )
+  emit_report(report, format)
+}
+
+///|
+fn compare_mbti_dirs(old_dir : String, new_dir : String) -> @lib.ApiReport {
+  let old_files = list_mbti_files(old_dir)
+  let new_files = list_mbti_files(new_dir)
+  let reports : Array[@lib.ApiReport] = []
+  for path in old_files {
+    if contains_string(new_files, path) {
+      let report = @lib.compare_mbti_content(
+        read_mbti_file(join_path(old_dir, path)),
+        read_mbti_file(join_path(new_dir, path)),
+      )
+      reports.push(report.scoped(path))
+    } else {
+      reports.push(@lib.file_removed_report(path))
+    }
+  }
+  for path in new_files {
+    if !contains_string(old_files, path) {
+      reports.push(@lib.file_added_report(path))
+    }
+  }
+  @lib.merge_api_reports(reports)
+}
+
+///|
+fn run_baseline_update(current_path : String, baseline_path : String) -> Unit {
+  let content = read_mbti_file(current_path)
+  @fs.write_string_to_file(baseline_path, content) catch {
+    IOError(message) => {
+      println("error: failed to write \{baseline_path}: \{message}")
+      @sys.exit(2)
+    }
+  }
+  println("baseline updated: \{baseline_path}")
+}
+
+///|
+fn emit_report(report : @lib.ApiReport, format : String) -> Unit {
   print_report(report, format)
   if report.release_blocked() {
     @sys.exit(1)
+  }
+}
+
+///|
+fn maybe_breaking_only(
+  report : @lib.ApiReport,
+  breaking_only : Bool,
+) -> @lib.ApiReport {
+  if breaking_only {
+    report.breaking_only()
+  } else {
+    report
   }
 }
 
@@ -86,6 +202,93 @@ fn fail_read(path : String, message : String) -> String {
   println("error: failed to read \{path}: \{message}")
   @sys.exit(2)
   ""
+}
+
+///|
+fn list_mbti_files(root : String) -> Array[String] {
+  let files : Array[String] = []
+  collect_mbti_files(root, "", files)
+  sort_strings(files)
+  files
+}
+
+///|
+fn collect_mbti_files(
+  root : String,
+  relative : String,
+  files : Array[String],
+) -> Unit {
+  let path = if relative.length() == 0 {
+    root
+  } else {
+    join_path(root, relative)
+  }
+  let entries = @fs.read_dir(path) catch {
+    IOError(message) => {
+      println("error: failed to read directory \{path}: \{message}")
+      @sys.exit(2)
+      []
+    }
+  }
+  for entry in entries {
+    if entry == "." || entry == ".." {
+      continue
+    }
+    let child_rel = if relative.length() == 0 {
+      entry
+    } else {
+      join_path(relative, entry)
+    }
+    let child_path = join_path(root, child_rel)
+    let is_directory = @fs.is_dir(child_path) catch {
+      IOError(message) => {
+        println("error: failed to inspect \{child_path}: \{message}")
+        @sys.exit(2)
+        false
+      }
+    }
+    if is_directory {
+      collect_mbti_files(root, child_rel, files)
+    } else if entry.has_suffix(".mbti") {
+      files.push(child_rel)
+    }
+  }
+}
+
+///|
+fn join_path(left : String, right : String) -> String {
+  if left.has_suffix("/") {
+    left + right
+  } else {
+    "\{left}/\{right}"
+  }
+}
+
+///|
+fn contains_string(items : Array[String], target : String) -> Bool {
+  for item in items {
+    if item == target {
+      return true
+    }
+  }
+  false
+}
+
+///|
+fn sort_strings(items : Array[String]) -> Unit {
+  let mut i = 0
+  while i < items.length() {
+    let mut j = i + 1
+    while j < items.length() {
+      if items[j] < items[i] {
+        let tmp = items[i]
+        items[i] = items[j]
+        items[j] = tmp
+      }
+      j = j + 1
+    }
+    i = i + 1
+  }
 }
 
 ///|
@@ -111,7 +314,13 @@ fn print_usage() -> Unit {
   println("")
   println("Usage:")
   println(
-    "  moon run cmd/main -- check <old.mbti> <new.mbti> [--format text|markdown|json]",
+    "  moon run cmd/main -- check <old.mbti> <new.mbti> [--format text|markdown|json] [--breaking-only]",
+  )
+  println(
+    "  moon run cmd/main -- check-dir <old_dir> <new_dir> [--format text|markdown|json] [--breaking-only]",
+  )
+  println(
+    "  moon run cmd/main -- baseline update <current.mbti> <baseline.mbti>",
   )
   println("  moon run cmd/main -- help")
   println("")

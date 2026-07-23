@@ -1,0 +1,3 @@
+pub fn parse(String) -> String
+pub fn keep(String) -> String
+pub fn format(Int) -> String

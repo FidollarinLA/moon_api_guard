@@ -43,6 +43,7 @@ When a MoonBit package is published to [mooncakes.io](https://mooncakes.io), dow
 moon check
 moon test
 moon run cmd/main -- check fixtures/old_api.mbti fixtures/new_api.mbti
+moon run cmd/main -- check-dir fixtures/dir_old fixtures/dir_new --breaking-only --format json
 moon run examples/basic
 ```
 
@@ -60,8 +61,9 @@ Compare two `.mbti` snapshots from the command line:
 
 ```bash
 moon run cmd/main -- check path/to/old.mbti path/to/new.mbti
-moon run cmd/main -- check path/to/old.mbti path/to/new.mbti --format json
-moon run cmd/main -- check path/to/old.mbti path/to/new.mbti --format markdown
+moon run cmd/main -- check path/to/old.mbti path/to/new.mbti --format json --breaking-only
+moon run cmd/main -- check-dir path/to/old_dir path/to/new_dir --format markdown
+moon run cmd/main -- baseline update pkg.generated.mbti baseline/pkg.generated.mbti
 ```
 
 Exit codes:
@@ -157,8 +159,13 @@ Key functions:
 - `parse_mbti_items(lines)` — parse public declarations from `.mbti` interface lines.
 - `compare_api(old_items, new_items)` — diff two API snapshots into an `ApiReport`.
 - `compare_mbti_content(old, new)` — parse + compare in one call.
+- `ApiReport::breaking_only()` — keep only breaking findings.
+- `ApiReport::scoped(scope)` — prefix findings with a file/path scope.
+- `merge_api_reports(reports)` — combine multi-file reports.
 - `ApiReport::semver_suggestion()` — `major` / `minor` / `patch` recommendation.
 - `ApiReport::release_blocked()` — `true` when breaking changes exist, for CI gating.
+
+Compatibility rules are documented in [docs/rules.md](docs/rules.md).
 
 Breaking change details include:
 
@@ -179,7 +186,7 @@ moon publish --dry-run
 moon publish        # uploads to https://mooncakes.io
 ```
 
-Published package: [FidollarinLA/moon_api_guard](https://mooncakes.io/docs/FidollarinLA/moon_api_guard) (current version `0.1.2`).
+Published package: [FidollarinLA/moon_api_guard](https://mooncakes.io/docs/FidollarinLA/moon_api_guard) (current version `0.2.0`).
 
 Consumers add the library with:
 

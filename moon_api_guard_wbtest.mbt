@@ -549,3 +549,13 @@ test "keeps generic associated functions on different types distinct" {
   inspect(report.breaking_count(), content="1")
   inspect(report.changes[0].name, content="Map[A, B]::get")
 }
+
+///|
+test "file removed and added reports classify correctly" {
+  let removed = file_removed_report("nested/extra.mbti")
+  let added = file_added_report("only_new.mbti")
+  inspect(removed.breaking_count(), content="1")
+  inspect(removed.changes[0].detail, content="file-removed")
+  inspect(added.compatible_count(), content="1")
+  inspect(added.changes[0].detail, content="file-added")
+}

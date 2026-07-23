@@ -6,7 +6,11 @@ on:
 
 jobs:
   check:
-    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
 
     steps:
       - name: Checkout code
@@ -34,6 +38,14 @@ jobs:
 
       - name: Run basic example
         run: moon run examples/basic
+
+      - name: Verify fixture directory guard detects breakage
+        run: |
+          set +e
+          moon run cmd/main -- check-dir fixtures/dir_old fixtures/dir_new --breaking-only --format json
+          code=$?
+          set -e
+          test "$code" -eq 1
 
       - name: Verify formatting
         run: |

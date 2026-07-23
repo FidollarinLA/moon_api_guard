@@ -75,3 +75,27 @@ test "public compare_mbti_content convenience entry" {
   inspect(report.release_blocked(), content="true")
   inspect(report.changes[0].detail, content="return-type-changed")
 }
+
+///|
+test "public breaking_only filters compatible changes" {
+  let report = @moon_api_guard.compare_mbti_content(
+    "pub fn parse(String) -> Int", "pub fn parse(String) -> String\npub fn format(Int) -> String",
+  )
+  let breaking = report.breaking_only()
+  inspect(report.compatible_count(), content="1")
+  inspect(breaking.compatible_count(), content="0")
+  inspect(breaking.breaking_count(), content="1")
+}
+
+///|
+test "public scoped and merge reports for multi-file workflows" {
+  let left = @moon_api_guard.compare_mbti_content(
+    "pub fn parse(String) -> Int", "pub fn parse(String) -> String",
+  ).scoped("pkg.mbti")
+  let right = @moon_api_guard.file_added_report("only_new.mbti")
+  let merged = @moon_api_guard.merge_api_reports([left, right])
+  inspect(merged.breaking_count(), content="1")
+  inspect(merged.compatible_count(), content="1")
+  inspect(merged.changes[0].name, content="pkg.mbti::parse")
+  inspect(merged.changes[1].detail, content="file-added")
+}

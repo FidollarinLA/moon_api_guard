@@ -203,6 +203,83 @@ pub fn compare_mbti_content(
 }
 
 ///|
+/// Keep only breaking changes. Useful for CI summaries that should ignore
+/// compatible additions.
+pub fn ApiReport::breaking_only(self : ApiReport) -> ApiReport {
+  let changes : Array[ApiChange] = []
+  for change in self.changes {
+    if change.category == "breaking" {
+      changes.push(change)
+    }
+  }
+  { changes, }
+}
+
+///|
+/// Prefix every change name with `scope::` so multi-file reports remain
+/// attributable to a concrete `.mbti` path.
+pub fn ApiReport::scoped(self : ApiReport, scope : String) -> ApiReport {
+  let changes : Array[ApiChange] = []
+  for change in self.changes {
+    changes.push(
+      api_change(
+        change.category,
+        change.detail,
+        change.kind,
+        "\{scope}::\{change.name}",
+        "\{scope}: \{change.message}",
+      ),
+    )
+  }
+  { changes, }
+}
+
+///|
+/// Merge multiple reports into one by concatenating their changes.
+pub fn merge_api_reports(reports : Array[ApiReport]) -> ApiReport {
+  let changes : Array[ApiChange] = []
+  for report in reports {
+    for change in report.changes {
+      changes.push(change)
+    }
+  }
+  { changes, }
+}
+
+///|
+/// Breaking report for a `.mbti` file present in the old snapshot but
+/// missing from the new one.
+pub fn file_removed_report(path : String) -> ApiReport {
+  {
+    changes: [
+      api_change(
+        "breaking",
+        "file-removed",
+        "file",
+        path,
+        "mbti file \{path} was removed",
+      ),
+    ],
+  }
+}
+
+///|
+/// Compatible report for a `.mbti` file present only in the new snapshot.
+pub fn file_added_report(path : String) -> ApiReport {
+  {
+    changes: [
+      api_change(
+        "compatible",
+        "file-added",
+        "file",
+        path,
+        "mbti file \{path} was added",
+      ),
+    ],
+  }
+}
+
+///|
 /// Count breaking changes in the report.
 pub fn ApiReport::breaking_count(self : ApiReport) -> Int {
   self.count_category("breaking")

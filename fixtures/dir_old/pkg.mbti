@@ -1,0 +1,2 @@
+pub fn parse(String) -> Int
+pub fn keep(String) -> String
