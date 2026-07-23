@@ -62,6 +62,7 @@ Compare two `.mbti` snapshots from the command line:
 ```bash
 moon run cmd/main -- check path/to/old.mbti path/to/new.mbti
 moon run cmd/main -- check path/to/old.mbti path/to/new.mbti --format json --breaking-only
+moon run cmd/main -- check path/to/old.mbti path/to/new.mbti --allow variant-added --strict
 moon run cmd/main -- check-dir path/to/old_dir path/to/new_dir --format markdown
 moon run cmd/main -- baseline update pkg.generated.mbti baseline/pkg.generated.mbti
 ```
@@ -159,6 +160,8 @@ Key functions:
 - `parse_mbti_items(lines)` — parse public declarations from `.mbti` interface lines.
 - `compare_api(old_items, new_items)` — diff two API snapshots into an `ApiReport`.
 - `compare_mbti_content(old, new)` — parse + compare in one call.
+- `compare_mbti_content_with_policy(old, new, policy)` — compare with severity overrides.
+- `default_compat_policy()` / `strict_compat_policy()` / `policy_allow` / `policy_ignore`
 - `ApiReport::breaking_only()` — keep only breaking findings.
 - `ApiReport::scoped(scope)` — prefix findings with a file/path scope.
 - `merge_api_reports(reports)` — combine multi-file reports.
@@ -186,7 +189,7 @@ moon publish --dry-run
 moon publish        # uploads to https://mooncakes.io
 ```
 
-Published package: [FidollarinLA/moon_api_guard](https://mooncakes.io/docs/FidollarinLA/moon_api_guard) (current version `0.2.0`).
+Published package: [FidollarinLA/moon_api_guard](https://mooncakes.io/docs/FidollarinLA/moon_api_guard) (current version `0.3.0`).
 
 Consumers add the library with:
 

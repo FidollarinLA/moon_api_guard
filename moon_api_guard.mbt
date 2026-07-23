@@ -131,9 +131,22 @@ pub fn parse_mbti_items(lines : Array[String]) -> Array[ApiItem] {
 /// - An item only present in `new_items` is a compatible `added` change.
 /// - Marking an existing item with `#deprecated` (body unchanged) is a
 ///   compatible `deprecated` change.
+///
+/// Uses `default_compat_policy()` for severity remaps (for example,
+/// labeled optional parameter additions are compatible).
 pub fn compare_api(
   old_items : Array[ApiItem],
   new_items : Array[ApiItem],
+) -> ApiReport {
+  compare_api_with_policy(old_items, new_items, default_compat_policy())
+}
+
+///|
+/// Compare two API snapshots with an explicit compatibility policy.
+pub fn compare_api_with_policy(
+  old_items : Array[ApiItem],
+  new_items : Array[ApiItem],
+  policy : CompatPolicy,
 ) -> ApiReport {
   let changes : Array[ApiChange] = []
   for old_item in old_items {
@@ -154,16 +167,19 @@ pub fn compare_api(
             old_item.kind,
             old_item.signature,
             new_item.signature,
+            policy,
           )
-          changes.push(
-            api_change(
-              classification.category,
-              classification.detail,
-              old_item.kind,
-              old_item.name,
-              classification.message,
-            ),
-          )
+          if classification.category != "ignore" {
+            changes.push(
+              api_change(
+                classification.category,
+                classification.detail,
+                old_item.kind,
+                old_item.name,
+                classification.message,
+              ),
+            )
+          }
         }
     }
   }
@@ -200,6 +216,20 @@ pub fn compare_mbti_content(
   new_content : String,
 ) -> ApiReport {
   compare_api(parse_mbti_content(old_content), parse_mbti_content(new_content))
+}
+
+///|
+/// Parse and compare two `.mbti` contents with an explicit policy.
+pub fn compare_mbti_content_with_policy(
+  old_content : String,
+  new_content : String,
+  policy : CompatPolicy,
+) -> ApiReport {
+  compare_api_with_policy(
+    parse_mbti_content(old_content),
+    parse_mbti_content(new_content),
+    policy,
+  )
 }
 
 ///|
@@ -476,12 +506,13 @@ fn owned(text : StringView) -> String {
 
 ///|
 /// Decide whether a signature difference is breaking or compatible.
-/// Attribute-only `#deprecated` additions are compatible; all other
-/// signature body differences are breaking.
+/// Attribute-only `#deprecated` additions are compatible; other body
+/// differences start as breaking and may be remapped by `policy`.
 fn classify_item_change(
   kind : String,
   old_signature : String,
   new_signature : String,
+  policy : CompatPolicy,
 ) -> ChangeClassification {
   let old_body = declaration_body(old_signature)
   let new_body = declaration_body(new_signature)
@@ -501,7 +532,8 @@ fn classify_item_change(
     }
   } else {
     let (detail, message) = classify_signature_change(kind, old_body, new_body)
-    { category: "breaking", detail, message }
+    let category = policy.category_for(detail, "breaking")
+    { category, detail, message }
   }
 }
 
@@ -609,36 +641,225 @@ fn find_field_by_name(fields : Array[String], target_name : String) -> String? {
 }
 
 ///|
-/// Classify function signature differences: return type first, then
-/// parameter count (removed/added), then parameter text changes.
+/// Classify function signature differences: type bounds, value return
+/// type, raise clause, then parameters (with optional-labeled awareness).
 fn classify_function_change(
   old_signature : String,
   new_signature : String,
 ) -> (String, String) {
-  let old_return = function_return_type(old_signature)
-  let new_return = function_return_type(new_signature)
-  if old_return != new_return &&
-    old_return.length() > 0 &&
-    new_return.length() > 0 {
+  let old_bounds = function_type_bounds(old_signature)
+  let new_bounds = function_type_bounds(new_signature)
+  if old_bounds != new_bounds {
     return (
-      "return-type-changed",
-      "return type changed from \{old_return} to \{new_return}",
+      "type-bound-changed",
+      "function type bounds changed from [\{old_bounds}] to [\{new_bounds}]",
     )
   }
-  let old_params = function_params(old_signature)
-  let new_params = function_params(new_signature)
-  let old_count = count_params(old_params)
-  let new_count = count_params(new_params)
-  if new_count < old_count {
+  let old_value = function_value_type(old_signature)
+  let new_value = function_value_type(new_signature)
+  if old_value != new_value &&
+    (old_value.length() > 0 || new_value.length() > 0) {
+    return (
+      "return-type-changed",
+      "return type changed from \{old_value} to \{new_value}",
+    )
+  }
+  let old_raise = function_raise_clause(old_signature)
+  let new_raise = function_raise_clause(new_signature)
+  if old_raise != new_raise {
+    if old_raise.length() == 0 {
+      return ("raise-added", "function raise clause added: \{new_raise}")
+    }
+    if new_raise.length() == 0 {
+      return ("raise-removed", "function raise clause removed")
+    }
+    return (
+      "raise-type-changed",
+      "function raise clause changed from \{old_raise} to \{new_raise}",
+    )
+  }
+  classify_parameter_change(old_signature, new_signature)
+}
+
+///|
+fn classify_parameter_change(
+  old_signature : String,
+  new_signature : String,
+) -> (String, String) {
+  let old_params = split_params(function_params(old_signature))
+  let new_params = split_params(function_params(new_signature))
+  for old_param in old_params {
+    if is_labeled_param(old_param) {
+      match find_param_by_key(new_params, param_key(old_param)) {
+        None =>
+          return (
+            "parameter-removed",
+            "function parameter removed: \{old_param}",
+          )
+        Some(new_param) =>
+          if new_param != old_param {
+            return (
+              "parameter-changed",
+              "function parameter changed: \{old_param} -> \{new_param}",
+            )
+          }
+      }
+    }
+  }
+  let old_positional = positional_params(old_params)
+  let new_positional = positional_params(new_params)
+  let shared = if old_positional.length() < new_positional.length() {
+    old_positional.length()
+  } else {
+    new_positional.length()
+  }
+  for i in 0..<shared {
+    if old_positional[i] != new_positional[i] {
+      return (
+        "parameter-changed",
+        "function parameter changed: \{old_positional[i]} -> \{new_positional[i]}",
+      )
+    }
+  }
+  if new_positional.length() < old_positional.length() {
     return ("parameter-removed", "function parameter removed")
   }
-  if new_count > old_count {
+  if new_positional.length() > old_positional.length() {
     return ("parameter-added", "function parameter added")
   }
-  if old_params != new_params {
-    return ("parameter-changed", "function parameter changed")
+  let mut only_optional_added = true
+  let mut added_any = false
+  for new_param in new_params {
+    if is_labeled_param(new_param) &&
+      find_param_by_key(old_params, param_key(new_param)) is None {
+      added_any = true
+      if !is_optional_labeled_param(new_param) {
+        only_optional_added = false
+      }
+    }
+  }
+  if added_any {
+    if only_optional_added {
+      return ("optional-parameter-added", "optional function parameter added")
+    }
+    return ("parameter-added", "function parameter added")
   }
   ("signature-changed", "function signature changed")
+}
+
+///|
+fn positional_params(params : Array[String]) -> Array[String] {
+  let result : Array[String] = []
+  for param in params {
+    if !is_labeled_param(param) {
+      result.push(param)
+    }
+  }
+  result
+}
+
+///|
+fn is_labeled_param(param : String) -> Bool {
+  is_optional_labeled_param(param) ||
+  (!param.has_prefix("(") && param.contains(" : "))
+}
+
+///|
+fn split_params(params : String) -> Array[String] {
+  let parts : Array[String] = []
+  if params.length() == 0 {
+    return parts
+  }
+  let mut current = ""
+  let mut depth = 0
+  for char in params {
+    if char == '(' || char == '[' {
+      depth = depth + 1
+      current = current + char.to_string()
+    } else if char == ')' || char == ']' {
+      depth = depth - 1
+      current = current + char.to_string()
+    } else if char == ',' && depth == 0 {
+      let trimmed = trim_line(current)
+      if trimmed.length() > 0 {
+        parts.push(trimmed)
+      }
+      current = ""
+    } else {
+      current = current + char.to_string()
+    }
+  }
+  let trimmed = trim_line(current)
+  if trimmed.length() > 0 {
+    parts.push(trimmed)
+  }
+  parts
+}
+
+///|
+fn is_optional_labeled_param(param : String) -> Bool {
+  param.contains("? :") || param.contains("?:")
+}
+
+///|
+fn param_key(param : String) -> String {
+  if is_optional_labeled_param(param) {
+    match param.split_once("?") {
+      Some((name, _)) => trim_line(owned(name))
+      None => param
+    }
+  } else if param.contains(" : ") {
+    match param.split_once(" : ") {
+      Some((name, _)) => trim_line(owned(name))
+      None => param
+    }
+  } else {
+    param
+  }
+}
+
+///|
+fn find_param_by_key(params : Array[String], key : String) -> String? {
+  for param in params {
+    if is_labeled_param(param) && param_key(param) == key {
+      return Some(param)
+    }
+  }
+  None
+}
+
+///|
+/// Value type before an optional `raise ...` clause.
+fn function_value_type(signature : String) -> String {
+  let full = function_return_type(signature)
+  match full.split_once(" raise") {
+    Some((before, _)) => trim_line(owned(before))
+    None => full
+  }
+}
+
+///|
+/// Text after `raise` in the return clause, or empty when absent.
+fn function_raise_clause(signature : String) -> String {
+  let full = function_return_type(signature)
+  match full.split_once(" raise") {
+    Some((_, after)) => trim_line(owned(after))
+    None => ""
+  }
+}
+
+///|
+/// Generic bounds inside `fn[...]`, e.g. `Data : ByteSource`.
+fn function_type_bounds(signature : String) -> String {
+  let line = declaration_line(signature)
+  match line.split_once("fn[") {
+    Some((_, after)) =>
+      match after.split_once("]") {
+        Some((bounds, _)) => trim_line(owned(bounds))
+        None => ""
+      }
+    None => ""
+  }
 }
 
 ///|
@@ -699,28 +920,6 @@ fn contains_field(fields : Array[String], target : String) -> Bool {
     }
   }
   false
-}
-
-///|
-/// Count top-level parameters in a parameter list, ignoring commas
-/// nested inside `(...)` or `[...]` such as tuple or generic arguments.
-fn count_params(params : String) -> Int {
-  if params.length() == 0 {
-    0
-  } else {
-    let mut count = 1
-    let mut depth = 0
-    for char in params {
-      if char == '(' || char == '[' {
-        depth = depth + 1
-      } else if char == ')' || char == ']' {
-        depth = depth - 1
-      } else if char == ',' && depth == 0 {
-        count = count + 1
-      }
-    }
-    count
-  }
 }
 
 ///|
@@ -874,6 +1073,7 @@ fn is_block_start(line : String) -> Bool {
 /// `Type::method(...) -> T` that appear without a `pub fn` prefix.
 fn is_public_item_line(line : String) -> Bool {
   line.has_prefix("pub fn ") ||
+  line.has_prefix("pub fn[") ||
   line.has_prefix("pub fnalias ") ||
   line.has_prefix("pub(all) fnalias ") ||
   line.has_prefix("pub type ") ||
@@ -888,6 +1088,7 @@ fn is_public_item_line(line : String) -> Bool {
   line.has_prefix("pub(all) suberror ") ||
   (
     !line.has_prefix("pub fn ") &&
+    !line.has_prefix("pub fn[") &&
     line.contains("::") &&
     line.contains("(") &&
     line.contains("->")
@@ -936,7 +1137,9 @@ fn item_from_signature(signature : String) -> ApiItem? {
     Some(api_item("trait", name_after_keyword(signature, "trait "), signature))
   } else if first_line.contains("fnalias ") {
     Some(api_item("fnalias", name_after_fnalias(signature), signature))
-  } else if first_line.contains("pub fn ") || first_line.contains("::") {
+  } else if first_line.contains("pub fn ") ||
+    first_line.contains("pub fn[") ||
+    first_line.contains("::") {
     Some(api_item("fn", name_after_function(signature), signature))
   } else if first_line.contains(" typealias ") {
     Some(
@@ -992,6 +1195,12 @@ fn name_after_function(signature : String) -> String {
           method_name
         }
       }
+      None => ""
+    }
+  } else if line.contains("pub fn[") {
+    match line.split_once("]") {
+      Some((_, after_bounds)) =>
+        first_identifier(trim_line(owned(after_bounds)))
       None => ""
     }
   } else if line.contains("pub fn ") {

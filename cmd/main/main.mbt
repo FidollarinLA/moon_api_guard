@@ -3,10 +3,8 @@
 fn main {
   let args = @sys.get_cli_args()
   match parse_command(args) {
-    Check(old_path, new_path, format, breaking_only) =>
-      run_check(old_path, new_path, format, breaking_only)
-    CheckDir(old_dir, new_dir, format, breaking_only) =>
-      run_check_dir(old_dir, new_dir, format, breaking_only)
+    Check(old_path, new_path, opts) => run_check(old_path, new_path, opts)
+    CheckDir(old_dir, new_dir, opts) => run_check_dir(old_dir, new_dir, opts)
     BaselineUpdate(current_path, baseline_path) =>
       run_baseline_update(current_path, baseline_path)
     Help => print_usage()
@@ -19,9 +17,16 @@ fn main {
 }
 
 ///|
+priv struct CheckOpts {
+  format : String
+  breaking_only : Bool
+  policy : @lib.CompatPolicy
+}
+
+///|
 enum Command {
-  Check(String, String, String, Bool)
-  CheckDir(String, String, String, Bool)
+  Check(String, String, CheckOpts)
+  CheckDir(String, String, CheckOpts)
   BaselineUpdate(String, String)
   Help
   Invalid(String)
@@ -65,6 +70,9 @@ fn parse_check_like_command(args : Array[String], cmd : String) -> Command {
   let mut right = ""
   let mut format = "text"
   let mut breaking_only = false
+  let mut strict = false
+  let mut allow = ""
+  let mut ignore = ""
   let mut index = 2
   while index < args.length() {
     let arg = args[index]
@@ -80,6 +88,21 @@ fn parse_check_like_command(args : Array[String], cmd : String) -> Command {
     } else if arg == "--breaking-only" {
       breaking_only = true
       index = index + 1
+    } else if arg == "--strict" {
+      strict = true
+      index = index + 1
+    } else if arg == "--allow" {
+      if index + 1 >= args.length() {
+        return Invalid("--allow requires a comma-separated detail list")
+      }
+      allow = args[index + 1]
+      index = index + 2
+    } else if arg == "--ignore" {
+      if index + 1 >= args.length() {
+        return Invalid("--ignore requires a comma-separated detail list")
+      }
+      ignore = args[index + 1]
+      index = index + 2
     } else if left.length() == 0 {
       left = arg
       index = index + 1
@@ -90,6 +113,11 @@ fn parse_check_like_command(args : Array[String], cmd : String) -> Command {
       return Invalid("unexpected argument: \{arg}")
     }
   }
+  let opts : CheckOpts = {
+    format,
+    breaking_only,
+    policy: build_policy(strict, allow, ignore),
+  }
   if left.length() == 0 || right.length() == 0 {
     if cmd == "check-dir" {
       Invalid("check-dir requires two directory paths")
@@ -97,53 +125,84 @@ fn parse_check_like_command(args : Array[String], cmd : String) -> Command {
       Invalid("check requires two .mbti file paths")
     }
   } else if cmd == "check-dir" {
-    CheckDir(left, right, format, breaking_only)
+    CheckDir(left, right, opts)
   } else {
-    Check(left, right, format, breaking_only)
+    Check(left, right, opts)
   }
 }
 
 ///|
-fn run_check(
-  old_path : String,
-  new_path : String,
-  format : String,
-  breaking_only : Bool,
-) -> Unit {
+fn build_policy(
+  strict : Bool,
+  allow : String,
+  ignore : String,
+) -> @lib.CompatPolicy {
+  let mut policy = if strict {
+    @lib.strict_compat_policy()
+  } else {
+    @lib.default_compat_policy()
+  }
+  for detail in split_csv(allow) {
+    policy = @lib.policy_allow(policy, detail)
+  }
+  for detail in split_csv(ignore) {
+    policy = @lib.policy_ignore(policy, detail)
+  }
+  policy
+}
+
+///|
+fn split_csv(text : String) -> Array[String] {
+  let parts : Array[String] = []
+  if text.length() == 0 {
+    return parts
+  }
+  for part in text.split(",") {
+    let trimmed = part.trim(char_set=" \t\r").to_owned()
+    if trimmed.length() > 0 {
+      parts.push(trimmed)
+    }
+  }
+  parts
+}
+
+///|
+fn run_check(old_path : String, new_path : String, opts : CheckOpts) -> Unit {
   let report = maybe_breaking_only(
-    @lib.compare_mbti_content(
+    @lib.compare_mbti_content_with_policy(
       read_mbti_file(old_path),
       read_mbti_file(new_path),
+      opts.policy,
     ),
-    breaking_only,
+    opts.breaking_only,
   )
-  emit_report(report, format)
+  emit_report(report, opts.format)
 }
 
 ///|
-fn run_check_dir(
+fn run_check_dir(old_dir : String, new_dir : String, opts : CheckOpts) -> Unit {
+  let report = maybe_breaking_only(
+    compare_mbti_dirs_with_policy(old_dir, new_dir, opts.policy),
+    opts.breaking_only,
+  )
+  emit_report(report, opts.format)
+}
+
+///|
+fn compare_mbti_dirs_with_policy(
   old_dir : String,
   new_dir : String,
-  format : String,
-  breaking_only : Bool,
-) -> Unit {
-  let report = maybe_breaking_only(
-    compare_mbti_dirs(old_dir, new_dir),
-    breaking_only,
-  )
-  emit_report(report, format)
-}
-
-///|
-fn compare_mbti_dirs(old_dir : String, new_dir : String) -> @lib.ApiReport {
+  policy : @lib.CompatPolicy,
+) -> @lib.ApiReport {
   let old_files = list_mbti_files(old_dir)
   let new_files = list_mbti_files(new_dir)
   let reports : Array[@lib.ApiReport] = []
   for path in old_files {
     if contains_string(new_files, path) {
-      let report = @lib.compare_mbti_content(
+      let report = @lib.compare_mbti_content_with_policy(
         read_mbti_file(join_path(old_dir, path)),
         read_mbti_file(join_path(new_dir, path)),
+        policy,
       )
       reports.push(report.scoped(path))
     } else {
@@ -313,16 +372,19 @@ fn print_usage() -> Unit {
   println("moon_api_guard - MoonBit public API compatibility guard")
   println("")
   println("Usage:")
-  println(
-    "  moon run cmd/main -- check <old.mbti> <new.mbti> [--format text|markdown|json] [--breaking-only]",
-  )
-  println(
-    "  moon run cmd/main -- check-dir <old_dir> <new_dir> [--format text|markdown|json] [--breaking-only]",
-  )
+  println("  moon run cmd/main -- check <old.mbti> <new.mbti> [options]")
+  println("  moon run cmd/main -- check-dir <old_dir> <new_dir> [options]")
   println(
     "  moon run cmd/main -- baseline update <current.mbti> <baseline.mbti>",
   )
   println("  moon run cmd/main -- help")
+  println("")
+  println("Options:")
+  println("  --format text|markdown|json")
+  println("  --breaking-only")
+  println("  --strict")
+  println("  --allow <detail>[,detail...]")
+  println("  --ignore <detail>[,detail...]")
   println("")
   println("Exit codes:")
   println("  0 - no breaking changes")

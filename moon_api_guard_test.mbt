@@ -99,3 +99,26 @@ test "public scoped and merge reports for multi-file workflows" {
   inspect(merged.changes[0].name, content="pkg.mbti::parse")
   inspect(merged.changes[1].detail, content="file-added")
 }
+
+///|
+test "public default policy treats optional params as compatible" {
+  let report = @moon_api_guard.compare_mbti_content(
+    "pub fn write(String) -> Unit", "pub fn write(String, encoding? : String) -> Unit",
+  )
+  inspect(report.release_blocked(), content="false")
+  inspect(report.changes[0].detail, content="optional-parameter-added")
+}
+
+///|
+test "public policy allow can relax enum variant addition" {
+  let policy = @moon_api_guard.policy_allow(
+    @moon_api_guard.strict_compat_policy(),
+    "variant-added",
+  )
+  let report = @moon_api_guard.compare_mbti_content_with_policy(
+    "pub(all) enum Status {\n  Ok\n}", "pub(all) enum Status {\n  Ok\n  Warning\n}",
+    policy,
+  )
+  inspect(report.breaking_count(), content="0")
+  inspect(report.compatible_count(), content="1")
+}

@@ -23,7 +23,7 @@ The module name in `moon.mod` must match your mooncakes.io username:
 
 ```toml
 name = "FidollarinLA/moon_api_guard"
-version = "0.2.0"
+version = "0.3.0"
 license = "Apache-2.0"
 repository = "https://github.com/FidollarinLA/moon_api_guard"
 description = "Public API compatibility checks for MoonBit packages."

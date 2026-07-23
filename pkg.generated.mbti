@@ -10,7 +10,13 @@ pub fn api_item(String, String, String) -> ApiItem
 
 pub fn compare_api(Array[ApiItem], Array[ApiItem]) -> ApiReport
 
+pub fn compare_api_with_policy(Array[ApiItem], Array[ApiItem], CompatPolicy) -> ApiReport
+
 pub fn compare_mbti_content(String, String) -> ApiReport
+
+pub fn compare_mbti_content_with_policy(String, String, CompatPolicy) -> ApiReport
+
+pub fn default_compat_policy() -> CompatPolicy
 
 pub fn file_added_report(String) -> ApiReport
 
@@ -21,6 +27,14 @@ pub fn merge_api_reports(Array[ApiReport]) -> ApiReport
 pub fn parse_mbti_content(String) -> Array[ApiItem]
 
 pub fn parse_mbti_items(Array[String]) -> Array[ApiItem]
+
+pub fn policy_allow(CompatPolicy, String) -> CompatPolicy
+
+pub fn policy_ignore(CompatPolicy, String) -> CompatPolicy
+
+pub fn policy_with_override(CompatPolicy, String, String) -> CompatPolicy
+
+pub fn strict_compat_policy() -> CompatPolicy
 
 // Errors
 
@@ -52,6 +66,15 @@ pub fn ApiReport::markdown_summary(Self) -> String
 pub fn ApiReport::release_blocked(Self) -> Bool
 pub fn ApiReport::scoped(Self, String) -> Self
 pub fn ApiReport::semver_suggestion(Self) -> String
+
+pub(all) struct CompatPolicy {
+  overrides : Array[RuleOverride]
+} derive(@debug.Debug)
+
+pub(all) struct RuleOverride {
+  detail : String
+  category : String
+} derive(Eq, @debug.Debug)
 
 // Type aliases
 

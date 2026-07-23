@@ -559,3 +559,95 @@ test "file removed and added reports classify correctly" {
   inspect(added.compatible_count(), content="1")
   inspect(added.changes[0].detail, content="file-added")
 }
+
+///|
+test "optional labeled parameter addition is compatible by default" {
+  let report = compare_mbti_content(
+    "pub fn read(String) -> String raise IOError", "pub fn read(String, encoding? : String) -> String raise IOError",
+  )
+  inspect(report.breaking_count(), content="0")
+  inspect(report.compatible_count(), content="1")
+  inspect(report.changes[0].detail, content="optional-parameter-added")
+  inspect(report.semver_suggestion(), content="minor")
+}
+
+///|
+test "strict policy keeps optional parameter addition breaking" {
+  let report = compare_mbti_content_with_policy(
+    "pub fn read(String) -> String",
+    "pub fn read(String, encoding? : String) -> String",
+    strict_compat_policy(),
+  )
+  inspect(report.breaking_count(), content="1")
+  inspect(report.changes[0].detail, content="optional-parameter-added")
+}
+
+///|
+test "raise clause changes are classified finely" {
+  let added = compare_mbti_content(
+    "pub fn parse(String) -> Json", "pub fn parse(String) -> Json raise ParseError",
+  )
+  inspect(added.changes[0].detail, content="raise-added")
+  inspect(added.breaking_count(), content="1")
+  let removed = compare_mbti_content(
+    "pub fn parse(String) -> Json raise ParseError", "pub fn parse(String) -> Json",
+  )
+  inspect(removed.changes[0].detail, content="raise-removed")
+  inspect(removed.compatible_count(), content="1")
+  let changed = compare_mbti_content(
+    "pub fn parse(String) -> Json raise ParseError", "pub fn parse(String) -> Json raise IOError",
+  )
+  inspect(changed.changes[0].detail, content="raise-type-changed")
+}
+
+///|
+test "type bound changes are breaking" {
+  let report = compare_mbti_content(
+    "pub fn[Data : ByteSource] hash(Data) -> Int", "pub fn[Data : Show] hash(Data) -> Int",
+  )
+  inspect(report.breaking_count(), content="1")
+  inspect(report.changes[0].detail, content="type-bound-changed")
+}
+
+///|
+test "policy allow remaps enum variant addition" {
+  let policy = policy_allow(strict_compat_policy(), "variant-added")
+  inspect(policy.overrides.length(), content="1")
+  inspect(policy.overrides[0].detail, content="variant-added")
+  inspect(policy.overrides[0].category, content="compatible")
+  inspect(
+    policy.category_for("variant-added", "breaking"),
+    content="compatible",
+  )
+  let report = compare_api_with_policy(
+    [
+      api_item(
+        "enum", "Status", "pub(all) enum Status {\n  Ok\n  Error(String)\n}",
+      ),
+    ],
+    [
+      api_item(
+        "enum", "Status", "pub(all) enum Status {\n  Ok\n  Error(String)\n  Warning\n}",
+      ),
+    ],
+    policy,
+  )
+  inspect(report.changes[0].detail, content="variant-added")
+  inspect(report.changes[0].category, content="compatible")
+  inspect(report.breaking_count(), content="0")
+  inspect(report.compatible_count(), content="1")
+}
+
+///|
+test "policy ignore drops matching findings" {
+  let policy = policy_ignore(
+    default_compat_policy(),
+    "optional-parameter-added",
+  )
+  let report = compare_mbti_content_with_policy(
+    "pub fn read(String) -> String", "pub fn read(String, encoding? : String) -> String",
+    policy,
+  )
+  inspect(report.changes.length(), content="0")
+  inspect(report.semver_suggestion(), content="patch")
+}

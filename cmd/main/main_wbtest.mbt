@@ -3,19 +3,21 @@ test "parse check command" {
   let command = parse_command([
     "moon_api_guard", "check", "fixtures/old_api.mbti", "fixtures/new_api.mbti",
   ])
-  inspect(command is Check(_, _, _, _), content="true")
+  inspect(command is Check(_, _, _), content="true")
 }
 
 ///|
-test "parse check command with json format and breaking only" {
+test "parse check command with policy flags" {
   let command = parse_command([
     "moon_api_guard", "check", "fixtures/old_api.mbti", "fixtures/new_api.mbti",
-    "--format", "json", "--breaking-only",
+    "--format", "json", "--breaking-only", "--strict", "--allow", "enum-variant-added",
+    "--ignore", "deprecated",
   ])
   match command {
-    Check(_, _, format, breaking_only) => {
-      inspect(format, content="json")
-      inspect(breaking_only, content="true")
+    Check(_, _, opts) => {
+      inspect(opts.format, content="json")
+      inspect(opts.breaking_only, content="true")
+      inspect(opts.policy.overrides.length() > 0, content="true")
     }
     _ => inspect(false, content="true")
   }
@@ -26,7 +28,7 @@ test "parse check-dir command" {
   let command = parse_command([
     "moon_api_guard", "check-dir", "fixtures/dir_old", "fixtures/dir_new",
   ])
-  inspect(command is CheckDir(_, _, _, _), content="true")
+  inspect(command is CheckDir(_, _, _), content="true")
 }
 
 ///|
@@ -65,12 +67,20 @@ test "parse unsupported format is invalid" {
 
 ///|
 test "run check reads identical fixture files" {
-  run_check("fixtures/old_api.mbti", "fixtures/old_api.mbti", "text", false)
+  run_check("fixtures/old_api.mbti", "fixtures/old_api.mbti", {
+    format: "text",
+    breaking_only: false,
+    policy: @lib.default_compat_policy(),
+  })
 }
 
 ///|
 test "run check-dir fixtures produce expected signals" {
-  let report = compare_mbti_dirs("fixtures/dir_old", "fixtures/dir_new")
+  let report = compare_mbti_dirs_with_policy(
+    "fixtures/dir_old",
+    "fixtures/dir_new",
+    @lib.default_compat_policy(),
+  )
   inspect(report.breaking_count() > 0, content="true")
   inspect(report.compatible_count() > 0, content="true")
   inspect(report.release_blocked(), content="true")

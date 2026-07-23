@@ -1,5 +1,22 @@
 # Changelog
 
+## 0.3.0 — 2026-07-23
+
+### Added
+
+- Finer function classification: `raise-*`, `optional-parameter-added`,
+  `type-bound-changed`
+- `CompatPolicy` with `default_compat_policy` / `strict_compat_policy`
+- `policy_allow` / `policy_ignore` / `compare_*_with_policy`
+- CLI `--strict`, `--allow`, `--ignore`
+- Parse support for `pub fn[T : Bound] name(...)`
+
+### Changed
+
+- Default policy treats labeled optional parameter additions as compatible
+- Default policy treats raise-clause removal as compatible
+- Documentation updated in `docs/rules.md`
+
 ## 0.2.0 — 2026-07-23
 
 ### Added
